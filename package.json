@@ -139,5 +139,6 @@
       "version": ">=24.17",
       "onFail": "error"
     }
-  }
+  },
+  "packageManager": "pnpm@11.9.0"
 }
