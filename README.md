@@ -4,8 +4,9 @@ A [Comark](https://github.com/comarkdown/comark)-aware [Tiptap](https://tiptap.d
 
 - **`comark-tiptap`** — the framework-agnostic core (`ComarkKit`, serializer, specs).
 - **`comark-tiptap/vue`** — Vue 3 bindings (`<ComarkEditor>`, `useComarkEditor`, Vue NodeView helpers).
+- **`comark-tiptap/react`** — React bindings (`<ComarkEditor>`, `useComarkEditor`, React NodeView helpers).
 
-Vue is the first framework binding; more are planned, following the frameworks Comark already supports. Each ships as its own subpath export with its framework as an **optional** peer dependency — so the core stays framework-agnostic and you install only what you use (`vue` + `@tiptap/vue-3` for `comark-tiptap/vue`).
+More framework bindings are planned, following the frameworks Comark already supports. Each ships as its own subpath export with its framework as an **optional** peer dependency — so the core stays framework-agnostic and you install only what you use.
 
 > Discussion: [`comarkdown/comark#164`](https://github.com/comarkdown/comark/issues/164).
 
@@ -18,6 +19,9 @@ pnpm add comark-tiptap comark @tiptap/core @tiptap/pm @tiptap/starter-kit \
 
 # + Vue bindings
 pnpm add vue @tiptap/vue-3
+
+# + React bindings
+pnpm add react react-dom @tiptap/react
 ```
 
 ## Core — `comark-tiptap`
@@ -150,6 +154,48 @@ const markdown = await getMarkdown() // string | null (async)
 ```
 
 Pass `kitOptions` to either the component or the composable to forward configuration to `ComarkKit.configure(...)`.
+
+## React — `comark-tiptap/react`
+
+Same surface, React idioms. `<ComarkEditor>` is **controlled** via `value` / `onChange` (React has no `v-model`); the `contentType` prop selects the flavor for both input and output.
+
+```tsx
+import { useState } from 'react'
+import { ComarkEditor, defineComarkReactComponent } from 'comark-tiptap/react'
+import type { ComarkTree } from 'comark-tiptap/react'
+import AlertNodeView from './AlertNodeView'
+
+const Alert = defineComarkReactComponent({
+  name: 'alert',
+  kind: 'block',
+  props: { type: { type: 'string', default: 'info' }, title: { type: 'string' } },
+  nodeView: AlertNodeView, // → real React NodeView via ReactNodeViewRenderer
+})
+
+function Editor() {
+  const [tree, setTree] = useState<ComarkTree>({ nodes: [], frontmatter: {}, meta: {} })
+  return <ComarkEditor value={tree} onChange={setTree} contentType="ast" components={[Alert]} />
+}
+```
+
+Markdown/HTML/JSON/AST flavors work the same way — set `contentType` and bind `value` / `onChange` in that flavor. Markdown seeds resolve **asynchronously** (see above); `onReady` / `onUpdate` fire when the seed lands, and the `fallback` prop renders while the editor is being created.
+
+### Hook
+
+```tsx
+const { editor, setContent, getAst, getMarkdown, getJson, getHtml } = useComarkEditor({
+  content: '# Hi\n', // mount-only seed
+  contentType: 'markdown',
+})
+
+await setContent('## Replaced\n') // single setter, dispatches by contentType
+await setContent(({ content }) => `${content}\n\nappended`) // functional updater
+
+const tree = getAst() // ComarkTree | null
+const markdown = await getMarkdown() // string | null (async)
+```
+
+For full control, pass your own editor: `<ComarkEditor editor={editor}>` renders it and skips the internal one.
 
 ## License
 

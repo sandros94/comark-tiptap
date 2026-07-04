@@ -15,13 +15,15 @@
     "noEmit": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "types": ["node"],
     "paths": {
       "comark-tiptap": ["./src/index.ts"],
+      "comark-tiptap/react": ["./src/react/index.ts"],
       "comark-tiptap/vue": ["./src/vue/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"],
   "exclude": ["node_modules", "dist", "playground"]
 }

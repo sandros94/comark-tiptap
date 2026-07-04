@@ -7,6 +7,7 @@
     "editor",
     "markdown",
     "prosemirror",
+    "react",
     "tiptap",
     "vue"
   ],
@@ -32,6 +33,10 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
+    "./react": {
+      "types": "./dist/react/index.d.mts",
+      "default": "./dist/react/index.mjs"
+    },
     "./vue": {
       "types": "./dist/vue/index.d.mts",
       "default": "./dist/vue/index.mjs"
@@ -43,6 +48,7 @@
     "stub": "obuild --stub",
     "dev": "pnpm -F playground-nuxt dev",
     "dev:vue": "pnpm -F playground-vue dev",
+    "dev:react": "pnpm -F playground-react dev",
     "dev:nuxt": "pnpm -F playground-nuxt dev",
     "dev:prepare": "obuild --stub && pnpm simple-git-hooks",
     "lint": "oxlint . && oxfmt --check .",
@@ -50,19 +56,24 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsgo --noEmit",
-    "typecheck:playgrounds": "pnpm -F playground-vue typecheck && pnpm -F playground-nuxt typecheck",
+    "typecheck:playgrounds": "pnpm -F playground-vue typecheck && pnpm -F playground-react typecheck && pnpm -F playground-nuxt typecheck",
     "prepack": "pnpm build",
     "release": "pnpm test && pnpm prepack && changelogen --release --push"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@tiptap/core": "^3.22.4",
     "@tiptap/extension-code-block": "^3.22.4",
     "@tiptap/extension-image": "^3.22.4",
     "@tiptap/extension-table": "^3.22.4",
     "@tiptap/pm": "^3.22.4",
+    "@tiptap/react": "^3.22.4",
     "@tiptap/starter-kit": "^3.22.4",
     "@tiptap/vue-3": "^3.22.4",
     "@types/node": "^26",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "@typescript/native-preview": "7.0.0-dev.20260704.1",
     "@vitest/coverage-v8": "^4.1.9",
     "changelogen": "^0.6.2",
@@ -73,6 +84,8 @@
     "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
     "oxlint-tsgolint": "^0.24.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9",
@@ -84,13 +97,25 @@
     "@tiptap/extension-image": "^3.22.4",
     "@tiptap/extension-table": "^3.22.4",
     "@tiptap/pm": "^3.22.4",
+    "@tiptap/react": "^3.22.4",
     "@tiptap/starter-kit": "^3.22.4",
     "@tiptap/vue-3": "^3.22.4",
     "comark": "^0.3.1",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
     "vue": "^3.5.0"
   },
   "peerDependenciesMeta": {
+    "@tiptap/react": {
+      "optional": true
+    },
     "@tiptap/vue-3": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     },
     "vue": {
@@ -104,7 +129,7 @@
     "pre-commit": "./node_modules/.bin/nano-staged"
   },
   "nano-staged": {
-    "*.{js,ts,mjs,cjs,json,yml,md,vue}": [
+    "*.{js,ts,tsx,mjs,cjs,json,yml,md,vue}": [
       "pnpm run fmt"
     ]
   },
