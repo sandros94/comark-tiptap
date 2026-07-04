@@ -1,6 +1,6 @@
 {
   "name": "comark-tiptap",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A Comark-aware Tiptap kit — edit markdown, Comark AST, or ProseMirror JSON with lossless round-trips, plus optional framework bindings.",
   "keywords": [
     "comark",
