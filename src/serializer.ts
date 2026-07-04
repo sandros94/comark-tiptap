@@ -156,19 +156,19 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     const out: ComarkNode[] = [];
     let i = 0;
     while (i < leaves.length) {
-      const leaf = leaves[i];
-      if (leaf.marks.length <= depth) {
+      // `i < leaves.length`, so the element is present.
+      const leaf = leaves[i]!;
+      const mark = leaf.marks[depth];
+      // No mark at this depth → this leaf's own node lands here directly.
+      if (!mark) {
         out.push(leaf.base);
         i++;
         continue;
       }
-      const mark = leaf.marks[depth];
       let j = i + 1;
-      while (
-        j < leaves.length &&
-        leaves[j].marks.length > depth &&
-        sameMark(leaves[j].marks[depth], mark)
-      ) {
+      while (j < leaves.length) {
+        const nextMark = leaves[j]!.marks[depth];
+        if (!nextMark || !sameMark(nextMark, mark)) break;
         j++;
       }
       const inner = groupLeaves(leaves.slice(i, j), depth + 1);

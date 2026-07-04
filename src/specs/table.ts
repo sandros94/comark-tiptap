@@ -23,7 +23,7 @@ export const tableSpec: NodeSpec = {
        cells) — bucketing every all-header row into <thead> would silently
        reorder rows whenever a header row wasn't already first. */
     let split = 0;
-    while (split < rows.length && isAllHeaders(rows[split])) split++;
+    while (split < rows.length && isAllHeaders(rows[split]!)) split++;
 
     const serializeRows = (src: JSONContent[]): ComarkElement[] => {
       const out: ComarkElement[] = [];
@@ -128,8 +128,8 @@ function extractTextAlign(style: string): { align?: string; rest: string } {
   for (const decl of style.split(";")) {
     const trimmed = decl.trim();
     if (trimmed === "") continue;
-    const m = /^text-align\s*:\s*(\S+)/i.exec(trimmed);
-    if (m) align = m[1].toLowerCase();
+    const captured = /^text-align\s*:\s*(\S+)/i.exec(trimmed)?.[1];
+    if (captured) align = captured.toLowerCase();
     else kept.push(trimmed);
   }
   return { align, rest: kept.join("; ") };

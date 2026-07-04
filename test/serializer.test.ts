@@ -109,7 +109,7 @@ describe("serializeInlines — mark nesting (PM → Comark)", () => {
   /* Serialize a paragraph's inline children straight through the full spec set;
      returns the Comark `p` element so nesting is visible. */
   const inlineToComark = (content: JSONContent[]): ComarkNode =>
-    pmDocToComark({ type: "doc", content: [{ type: "paragraph", content }] }, full).nodes[0];
+    pmDocToComark({ type: "doc", content: [{ type: "paragraph", content }] }, full).nodes[0]!;
   const run = (text: string, marks: PMMark[]): JSONContent => ({ type: "text", text, marks });
 
   it("coalesces a single mark spanning mixed content into ONE element", () => {
