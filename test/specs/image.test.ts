@@ -37,6 +37,15 @@ describe('imageSpec', () => {
     expect(imageSpec.toComark(pm, helpers)).toEqual(original)
   })
 
+  it('preserves an explicit empty alt (decorative-image WCAG marker)', () => {
+    // `alt=""` is semantically distinct from a missing alt; a truthy check
+    // would drop it, so it must survive the round-trip.
+    const original: ComarkElement = ['img', { src: '/x.png', alt: '' }]
+    const pm = imageSpec.fromComark(original, helpers)!
+    expect(pm.attrs?.alt).toBe('')
+    expect(imageSpec.toComark(pm, helpers)).toEqual(original)
+  })
+
   it('round-trips an inline image inside a paragraph', () => {
     const original: ComarkElement = [
       'p',

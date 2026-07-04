@@ -66,6 +66,21 @@ describe('createSerializer', () => {
     expect(pm.content?.[0]?.content?.[0]?.marks?.[0]?.type).toBe('bold')
   })
 
+  it('splats children of an unknown block tag instead of dropping the subtree', () => {
+    // Forward-compat: a tag with no registered spec must not vanish silently —
+    // its children are recovered (mirrors the inline fallback).
+    const tree: ComarkTree = {
+      nodes: [['section', {}, ['p', {}, 'kept']] as never],
+      frontmatter: {},
+      meta: {},
+    }
+    const pm = comarkToPmDoc(tree, helpers)
+    expect(pm.content?.[0]).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'kept' }],
+    })
+  })
+
   it('produces an empty-paragraph doc for an empty AST', () => {
     const pm = comarkToPmDoc({ nodes: [], frontmatter: {}, meta: {} }, helpers)
     expect(pm).toEqual({

@@ -109,4 +109,39 @@ describe('table round-trip', () => {
     expect(out[2]?.[0]).toBe('thead')
     expect(out[3]?.[0]).toBe('tbody')
   })
+
+  it('keeps row order when a header row is not first (no silent reordering)', () => {
+    // Rows body/header/body: the middle header must NOT jump to <thead>. Only a
+    // leading run of header rows becomes <thead>; here there is none, so every
+    // row stays in <tbody> in source order (the header cell stays a th).
+    const row = (tag: 'tableCell' | 'tableHeader') => ({
+      type: 'tableRow',
+      content: [{ type: tag, content: [{ type: 'paragraph' }] }],
+    })
+    const pm = { type: 'table', content: [row('tableCell'), row('tableHeader'), row('tableCell')] }
+    expect(tableSpec.toComark(pm, helpers)).toEqual([
+      'table',
+      {},
+      ['tbody', {}, ['tr', {}, ['td', {}]], ['tr', {}, ['th', {}]], ['tr', {}, ['td', {}]]],
+    ])
+  })
+
+  it('seeds a minimal cell for a rowless table (invalid PM otherwise)', () => {
+    const pm = tableSpec.fromComark(['table', {}] as ComarkElement, helpers)!
+    expect(pm.content).toEqual([
+      { type: 'tableRow', content: [{ type: 'tableCell', content: [{ type: 'paragraph' }] }] },
+    ])
+  })
+
+  it('coerces a stringy colwidth into a number array', () => {
+    const pm = tableSpec.fromComark(
+      [
+        'table',
+        {},
+        ['tbody', {}, ['tr', {}, ['td', { colwidth: ['80', '120'] }, 'x']]],
+      ] as ComarkElement,
+      helpers,
+    )!
+    expect(pm.content?.[0]?.content?.[0]?.attrs?.colwidth).toEqual([80, 120])
+  })
 })

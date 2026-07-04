@@ -7,6 +7,7 @@ import {
 } from '@tiptap/core'
 import { parse } from 'comark'
 import { renderMarkdown } from 'comark/render'
+import { isComarkTreeLike } from './content'
 import { injectComarkStyles } from './style'
 import type {
   ComarkComment,
@@ -193,7 +194,13 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
       // Block element — flush whatever inlines we accumulated, then emit.
       flushInlines()
       const spec = pickNodeForTag(child)
-      if (!spec) continue
+      if (!spec) {
+        /* Unknown / forward-compat block tag: splat its children so their
+           content survives, instead of dropping the whole subtree. Mirrors the
+           inline fallback in parseInlines. */
+        out.push(...parseBlocks(child.slice(2) as ComarkNode[]))
+        continue
+      }
       const result = spec.fromComark(child, helpers)
       if (result) out.push(result)
     }
@@ -384,9 +391,38 @@ export interface SetComarkContentOptions {
   errorOnInvalidContent?: boolean
 }
 
+/** Which operation raised an error handed to a {@link ComarkErrorHandler}. */
+export interface ComarkErrorContext {
+  phase:
+    | 'construct'
+    | 'setContent'
+    | 'setComarkAst'
+    | 'setComarkMarkdown'
+    | 'insertContent'
+    | 'insertContentAt'
+    | 'render'
+}
+
+/**
+ * Observe the async parse / render / AST-JSON failures the kit otherwise
+ * swallows to `console.warn`. When set it REPLACES the default warn, so a
+ * consumer can log, surface, or silence them.
+ *
+ * @example
+ * ```ts
+ * ComarkKit.configure({ serializer: { onError: (e, { phase }) => report(phase, e) } })
+ * ```
+ */
+export type ComarkErrorHandler = (error: unknown, context: ComarkErrorContext) => void
+
 export interface ComarkSerializerStorage {
   /** The dispatch helpers built from the registered specs. */
   helpers: ComarkHelpers
+  /**
+   * Consumer error handler forwarded from options (`undefined` = default
+   * `console.warn`). Bindings read it to report their own render failures.
+   */
+  onError?: ComarkErrorHandler
   /** External frontmatter / meta the editor doesn't own. */
   frontmatter: Record<string, unknown>
   meta: Record<string, unknown>
@@ -427,9 +463,30 @@ export interface ComarkSerializerOptions {
    * @default undefined
    */
   injectNonce?: string
+
+  /**
+   * Observe async parse / render / AST-JSON failures instead of the default
+   * `console.warn`. See {@link ComarkErrorHandler}.
+   *
+   * @default undefined
+   */
+  onError?: ComarkErrorHandler
 }
 
 const EMPTY_HELPERS: ComarkHelpers = createSerializer({ nodes: [], marks: [] })
+
+/** Route a swallowed failure to the consumer handler, or `console.warn` by default. */
+function reportError(
+  onError: ComarkErrorHandler | undefined,
+  error: unknown,
+  context: ComarkErrorContext,
+): void {
+  if (onError) {
+    onError(error, context)
+  } else if (typeof console !== 'undefined') {
+    console.warn(`[comark] ${context.phase} failed:`, error)
+  }
+}
 
 export const ComarkSerializer = Extension.create<ComarkSerializerOptions, ComarkSerializerStorage>({
   name: 'comark',
@@ -439,6 +496,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       specs: { nodes: [], marks: [] },
       injectStyles: true,
       injectNonce: undefined,
+      onError: undefined,
     }
   },
 
@@ -448,6 +506,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       frontmatter: {},
       meta: {},
       editor: null,
+      onError: undefined,
       getAst(this: ComarkSerializerStorage): ComarkTree {
         if (!this.editor) throw new Error('[comark] editor not yet attached')
         return pmDocToComark(this.editor.getJSON() as JSONContent, this.helpers, {
@@ -467,6 +526,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
        setComarkAst, which dispatches before our own onCreate would run. */
     this.storage.editor = this.editor
     this.storage.helpers = createSerializer(this.options.specs)
+    this.storage.onError = this.options.onError
 
     /* Tiptap's constructor calls createDocument(options.content) directly, so the
        setContent override below never fires for the seed — hijack options.content
@@ -484,7 +544,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       } else if (opts.contentType === 'json') {
         /* Parse PM JSON ourselves: the lib doesn't ship @tiptap/markdown's
            MarkdownManager, which is what lets stock Tiptap accept JSON strings. */
-        const parsed = safeJsonParse(opts.content, 'construction-time content')
+        const parsed = safeJsonParse(opts.content, this.options.onError, 'construct')
         opts.content = parsed === undefined ? '' : (parsed as typeof opts.content)
       } else {
         const markdown = opts.content
@@ -495,9 +555,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
             this.editor.commands.setComarkAst(tree, { emitUpdate: true })
           })
           .catch((err) => {
-            if (typeof console !== 'undefined') {
-              console.warn('[comark] construction-time markdown parse failed:', err)
-            }
+            reportError(this.options.onError, err, { phase: 'construct' })
           })
       }
     } else if (isComarkTreeLike(opts.content)) {
@@ -524,10 +582,16 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           /* String form: JSON.parse + AST shape-check; bad shapes return false. */
           let tree: ComarkTree
           if (typeof value === 'string') {
-            const parsed = safeJsonParse(value, 'setComarkAst')
+            const parsed = safeJsonParse(value, this.options.onError, 'setComarkAst')
             if (parsed === undefined || !isComarkTreeLike(parsed)) {
-              if (typeof console !== 'undefined') {
-                console.warn('[comark] setComarkAst: string input did not parse to a Comark AST')
+              /* Bad JSON is already reported by safeJsonParse; only the
+                 valid-JSON-but-wrong-shape case needs a report here. */
+              if (parsed !== undefined) {
+                reportError(
+                  this.options.onError,
+                  new Error('setComarkAst: input is not a Comark AST (missing `nodes` array)'),
+                  { phase: 'setComarkAst' },
+                )
               }
               return false
             }
@@ -552,9 +616,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
               editor.commands.setComarkAst(tree, options)
             })
             .catch((err) => {
-              if (typeof console !== 'undefined') {
-                console.warn('[comark] setComarkMarkdown parse failed:', err)
-              }
+              reportError(this.options.onError, err, { phase: 'setComarkMarkdown' })
             })
           return true
         },
@@ -581,7 +643,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         }
         if (options?.contentType === 'json') {
           /* Strict PM JSON; AST strings belong on setComarkAst, no shape-sniff here. */
-          const parsed = safeJsonParse(content, 'setContent')
+          const parsed = safeJsonParse(content, this.options.onError, 'setContent')
           if (parsed === undefined) return false
           return baseSetContent(parsed as Content, options)(props)
         }
@@ -595,9 +657,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
             })
           })
           .catch((err) => {
-            if (typeof console !== 'undefined') {
-              console.warn('[comark] setContent: markdown parse failed:', err)
-            }
+            reportError(this.options.onError, err, { phase: 'setContent' })
           })
         return true
       },
@@ -611,7 +671,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           return baseInsertContent(value as Content, options)(props)
         }
         if (options?.contentType === 'json') {
-          const parsed = safeJsonParse(value, 'insertContent')
+          const parsed = safeJsonParse(value, this.options.onError, 'insertContent')
           if (parsed === undefined) return false
           return baseInsertContent(parsed as Content, options)(props)
         }
@@ -622,9 +682,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
             props.editor.commands.insertContent(payload, options)
           })
           .catch((err) => {
-            if (typeof console !== 'undefined') {
-              console.warn('[comark] insertContent: markdown parse failed:', err)
-            }
+            reportError(this.options.onError, err, { phase: 'insertContent' })
           })
         return true
       },
@@ -638,7 +696,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           return baseInsertContentAt(position, value as Content, options)(props)
         }
         if (options?.contentType === 'json') {
-          const parsed = safeJsonParse(value, 'insertContentAt')
+          const parsed = safeJsonParse(value, this.options.onError, 'insertContentAt')
           if (parsed === undefined) return false
           return baseInsertContentAt(position, parsed as Content, options)(props)
         }
@@ -649,9 +707,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
             props.editor.commands.insertContentAt(position, payload, options)
           })
           .catch((err) => {
-            if (typeof console !== 'undefined') {
-              console.warn('[comark] insertContentAt: markdown parse failed:', err)
-            }
+            reportError(this.options.onError, err, { phase: 'insertContentAt' })
           })
         return true
       },
@@ -661,23 +717,15 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
 
 // #region routing helpers (Comark AST detection + dispatch)
 
-/* Object with a `nodes` array — the structural signature of a ComarkTree. */
-function isComarkTreeLike(v: unknown): v is ComarkTree {
-  return (
-    !!v &&
-    typeof v === 'object' &&
-    'nodes' in (v as Record<string, unknown>) &&
-    Array.isArray((v as { nodes: unknown }).nodes)
-  )
-}
-
-function safeJsonParse(input: string, label: string): unknown {
+function safeJsonParse(
+  input: string,
+  onError: ComarkErrorHandler | undefined,
+  phase: ComarkErrorContext['phase'],
+): unknown {
   try {
     return JSON.parse(input)
   } catch (err) {
-    if (typeof console !== 'undefined') {
-      console.warn(`[comark] ${label}: contentType="json" but content is not valid JSON:`, err)
-    }
+    reportError(onError, err, { phase })
     return undefined
   }
 }

@@ -2,7 +2,11 @@ import { useCallback, useRef } from 'react'
 import { useEditor, type Editor } from '@tiptap/react'
 import type { AnyExtension, Content, EditorOptions } from '@tiptap/core'
 import {
+  applyContent,
   ComarkKit,
+  isComarkTreeLike,
+  readByFlavor,
+  type ComarkErrorHandler,
   type ComarkKitOptions,
   type ComarkTree,
   type ContentType,
@@ -30,6 +34,12 @@ export interface UseComarkEditorOptions {
     Partial<EditorOptions>,
     'extensions' | 'content' | 'onCreate' | 'onUpdate' | 'onDestroy'
   >
+  /**
+   * Observe async parse / render / AST-JSON failures the kit otherwise
+   * swallows to `console.warn`. Forwarded to `ComarkKit`'s serializer;
+   * also fires for the wrapper's own markdown-render failures.
+   */
+  onError?: ComarkErrorHandler
   onCreate?: (editor: Editor) => void
   onUpdate?: (editor: Editor) => void
   onDestroy?: () => void
@@ -53,49 +63,6 @@ export interface UseComarkEditorReturn {
 }
 
 const DEFAULT_CONTENT_TYPE: ContentType = 'markdown'
-
-function applyContent(
-  editor: Editor,
-  value: ContentValue,
-  contentType: ContentType,
-  options: SetComarkContentOptions = {},
-): void {
-  const baseOpts = {
-    emitUpdate: options.emitUpdate ?? true,
-    errorOnInvalidContent: options.errorOnInvalidContent,
-  }
-  switch (contentType) {
-    case 'ast':
-      editor.commands.setComarkAst(value as ComarkTree | string, baseOpts)
-      return
-    case 'markdown':
-      /* Object content with a 'markdown' flavor is a misuse; fall through to
-         setContent, which auto-detects ComarkTree vs PM JSON. */
-      if (typeof value === 'string') editor.commands.setComarkMarkdown(value, baseOpts)
-      else editor.commands.setContent(value as Content, baseOpts)
-      return
-    case 'html':
-      editor.commands.setContent(value as Content, { ...baseOpts, contentType: 'html' })
-      return
-    case 'json':
-      editor.commands.setContent(value as Content, { ...baseOpts, contentType: 'json' })
-      return
-  }
-}
-
-function readContent(editor: Editor, contentType: ContentType): ContentValue | null {
-  switch (contentType) {
-    case 'ast':
-      return editor.storage.comark.getAst()
-    case 'markdown':
-      /* async; the functional-updater path awaits getMarkdown() itself. */
-      return null
-    case 'html':
-      return editor.getHTML()
-    case 'json':
-      return editor.getJSON() as JSONContent
-  }
-}
 
 /**
  * React hook returning a Tiptap `Editor` pre-configured with `ComarkKit`,
@@ -129,8 +96,18 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
     ...((init.kitOptions?.components as ReadonlyArray<ComarkReactComponentExports> | undefined) ??
       []),
   ]
+  /* Route the hook-level onError into the serializer so core parse failures
+     reach it too; a kitOptions.serializer.onError still wins. */
+  const serializer =
+    init.onError !== undefined
+      ? { onError: init.onError, ...init.kitOptions?.serializer }
+      : init.kitOptions?.serializer
   const allExtensions: AnyExtension[] = [
-    ComarkKit.configure({ ...init.kitOptions, components: mergedComponents }),
+    ComarkKit.configure({
+      ...init.kitOptions,
+      ...(serializer ? { serializer } : {}),
+      components: mergedComponents,
+    }),
     ...(init.extensions ?? []),
   ]
 
@@ -181,7 +158,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
         const current =
           ct === 'markdown'
             ? ((await editor.storage.comark.getMarkdown()) as ContentValue)
-            : (readContent(editor, ct) as ContentValue)
+            : (readByFlavor(editor, ct) as ContentValue)
         next = await (
           input as (ctx: SetterContext<ContentValue>) => ContentValue | Promise<ContentValue>
         )({ content: current, editor })
@@ -208,13 +185,4 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
   const getHtml = useCallback((): string | null => editor?.getHTML() ?? null, [editor])
 
   return { editor, isReady: editor !== null, setContent, getAst, getMarkdown, getJson, getHtml }
-}
-
-function isComarkTreeLike(v: unknown): v is ComarkTree {
-  return (
-    !!v &&
-    typeof v === 'object' &&
-    'nodes' in (v as Record<string, unknown>) &&
-    Array.isArray((v as { nodes: unknown }).nodes)
-  )
 }

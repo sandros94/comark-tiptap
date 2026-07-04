@@ -2,6 +2,14 @@ import { mergeAttrs, splitAttrs } from '../utils/attrs'
 import { autoUnwrapBlocks } from '../utils/auto-unwrap'
 import type { ComarkElement, ComarkHelpers, JSONContent, NodeSpec } from '../types'
 
+/* A fresh minimal `listItem` for a would-be-empty list — PM's list schema is
+   `listItem+`, so a childless `ul`/`ol` (e.g. `- \n` → `['ul',{}]`) is invalid
+   without one. A new object per call: PM must not share node references. */
+const EMPTY_LIST_ITEM = (): JSONContent => ({
+  type: 'listItem',
+  content: [{ type: 'paragraph' }],
+})
+
 // #region listItem
 
 /** listItem ↔ Comark `li`. */
@@ -55,7 +63,10 @@ export const bulletListSpec: NodeSpec = {
     const [, rawAttrs, ...children] = el
     const { htmlAttrs } = splitAttrs(rawAttrs, [])
     const items = h.parseBlocks(children).filter((c) => c.type === 'listItem')
-    const out: JSONContent = { type: 'bulletList', content: items }
+    const out: JSONContent = {
+      type: 'bulletList',
+      content: items.length > 0 ? items : [EMPTY_LIST_ITEM()],
+    }
     if (Object.keys(htmlAttrs).length > 0) out.attrs = { htmlAttrs }
     return out
   },
@@ -88,10 +99,18 @@ export const orderedListSpec: NodeSpec = {
     const [, rawAttrs, ...children] = el
     const { semantic, htmlAttrs } = splitAttrs(rawAttrs, ORDERED_LIST_SEMANTIC)
     const attrs: Record<string, unknown> = {}
-    if (semantic.start != null) attrs.start = semantic.start
+    /* Comark carries `start` as a string; PM's OrderedList schema types it as a
+       number (its renderHTML/join do numeric comparisons), so coerce here. */
+    if (semantic.start != null) {
+      const start = Number(semantic.start)
+      if (Number.isFinite(start)) attrs.start = start
+    }
     if (Object.keys(htmlAttrs).length > 0) attrs.htmlAttrs = htmlAttrs
     const items = h.parseBlocks(children).filter((c) => c.type === 'listItem')
-    const out: JSONContent = { type: 'orderedList', content: items }
+    const out: JSONContent = {
+      type: 'orderedList',
+      content: items.length > 0 ? items : [EMPTY_LIST_ITEM()],
+    }
     if (Object.keys(attrs).length > 0) out.attrs = attrs
     return out
   },

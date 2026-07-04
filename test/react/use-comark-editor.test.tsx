@@ -8,7 +8,7 @@
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Editor } from '@tiptap/react'
-import type { ComarkTree } from 'comark-tiptap'
+import type { ComarkErrorContext, ComarkTree } from 'comark-tiptap'
 import { ComarkEditor, useComarkEditor } from '../../src/react/index'
 
 afterEach(cleanup)
@@ -79,6 +79,18 @@ describe('useComarkEditor', () => {
       await tick()
     })
     await waitFor(async () => expect(await result.current.getMarkdown()).toContain('appended'))
+  })
+
+  it('forwards onError into the kit serializer', async () => {
+    const contexts: ComarkErrorContext[] = []
+    const { result } = renderHook(() =>
+      useComarkEditor({ onError: (_err, ctx) => contexts.push(ctx) }),
+    )
+    await waitFor(() => expect(result.current.editor).not.toBeNull())
+    act(() => {
+      result.current.editor?.commands.setComarkAst('{not json')
+    })
+    expect(contexts.map((c) => c.phase)).toContain('setComarkAst')
   })
 
   it('destroys the editor on unmount', async () => {

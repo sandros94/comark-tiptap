@@ -1,7 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { EditorContent, type Editor } from '@tiptap/react'
 import type { AnyExtension } from '@tiptap/core'
-import type { ComarkKitOptions, ContentType, ContentValue } from 'comark-tiptap'
+import {
+  readByFlavor,
+  safeJson,
+  type ComarkErrorHandler,
+  type ComarkKitOptions,
+  type ContentType,
+  type ContentValue,
+} from 'comark-tiptap'
 import { useComarkEditor, type UseComarkEditorOptions } from './use-comark-editor'
 import type { ComarkReactComponentExports } from './define-component'
 
@@ -22,6 +29,11 @@ export interface ComarkEditorProps {
   onChange?: (value: ContentValue) => void
   onReady?: (editor: Editor) => void
   onUpdate?: (editor: Editor) => void
+  /**
+   * Observe async parse / render / AST-JSON failures the kit otherwise
+   * swallows to `console.warn`.
+   */
+  onError?: ComarkErrorHandler
   components?: ReadonlyArray<ComarkReactComponentExports>
   extensions?: ReadonlyArray<AnyExtension>
   kitOptions?: Partial<ComarkKitOptions>
@@ -68,6 +80,7 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     onChange,
     onReady,
     onUpdate,
+    onError,
     components,
     extensions,
     kitOptions,
@@ -80,13 +93,6 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
   /* JSON-shadow loop guard: dedupes the onChange echo. Every push (in or out)
      stamps the shadow, so the wave a value update triggers doesn't bounce back. */
   const shadow = useRef<string | null>(null)
-  const safeJson = (v: unknown): string => {
-    try {
-      return JSON.stringify(v)
-    } catch {
-      return ''
-    }
-  }
 
   /* `content` wins as the explicit seed; else the controlled value's initial. */
   const seedAtMount = content !== undefined ? content : value
@@ -98,8 +104,9 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
         if (md === shadow.current) return
         shadow.current = md
         onChange?.(md)
-      } catch {
-        /* keep the editor alive over a comark/render error */
+      } catch (err) {
+        /* Keep the editor alive over a render error; surface it if observed. */
+        e.storage.comark.onError?.(err, { phase: 'render' })
       }
       return
     }
@@ -114,8 +121,9 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     if (contentType === 'markdown') {
       try {
         shadow.current = await e.storage.comark.getMarkdown()
-      } catch {
+      } catch (err) {
         shadow.current = null
+        e.storage.comark.onError?.(err, { phase: 'render' })
       }
       return
     }
@@ -129,6 +137,7 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     extensions,
     kitOptions,
     editorOptions,
+    onError,
     onCreate: (e) => {
       /* Async markdown seed isn't applied yet — seed the shadow so the first
          update syncs. Sync cross-flavor seed (`content` set) pushes now. */
@@ -174,17 +183,4 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
 
 function renderChildren(children: ComarkEditorProps['children'], editor: Editor): ReactNode {
   return typeof children === 'function' ? children(editor) : (children ?? null)
-}
-
-function readByFlavor(e: Editor, ct: ContentType): unknown {
-  switch (ct) {
-    case 'ast':
-      return e.storage.comark.getAst()
-    case 'html':
-      return e.getHTML()
-    case 'json':
-      return e.getJSON()
-    case 'markdown':
-      return null
-  }
 }

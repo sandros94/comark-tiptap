@@ -29,7 +29,9 @@ describe('templateSpec', () => {
   })
 
   it('preserves htmlAttrs on the template', () => {
-    const original: ComarkElement = ['template', { name: 'content', class: 'lead' }, ['p', {}, 'C']]
+    /* Single-line slot: Comark's canonical form unwraps the lone paragraph, so
+       the round-trip target is the inline text `'C'`, not `['p', {}, 'C']`. */
+    const original: ComarkElement = ['template', { name: 'content', class: 'lead' }, 'C']
     const pm = templateSpec.fromComark(original, helpers)!
     expect(pm.attrs).toEqual({ name: 'content', htmlAttrs: { class: 'lead' } })
     expect(templateSpec.toComark(pm, helpers)).toEqual(original)

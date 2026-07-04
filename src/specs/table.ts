@@ -14,17 +14,27 @@ export const tableSpec: NodeSpec = {
       (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
     )
 
-    const headerRows: ComarkElement[] = []
-    const bodyRows: ComarkElement[] = []
-    for (const row of node.content ?? []) {
-      if (row.type !== 'tableRow') continue
-      const allHeaders =
-        (row.content?.length ?? 0) > 0 && (row.content ?? []).every((c) => c.type === 'tableHeader')
-      const out = h.serializeBlocks([row])[0] as ComarkElement | undefined
-      if (!out) continue
-      if (allHeaders) headerRows.push(out)
-      else bodyRows.push(out)
+    const rows = (node.content ?? []).filter((r) => r.type === 'tableRow')
+    const isAllHeaders = (row: JSONContent): boolean =>
+      (row.content?.length ?? 0) > 0 && (row.content ?? []).every((c) => c.type === 'tableHeader')
+
+    /* Only a LEADING run of all-header rows becomes <thead>. A header row that
+       isn't part of that prefix stays in document order inside <tbody> (as th
+       cells) — bucketing every all-header row into <thead> would silently
+       reorder rows whenever a header row wasn't already first. */
+    let split = 0
+    while (split < rows.length && isAllHeaders(rows[split])) split++
+
+    const serializeRows = (src: JSONContent[]): ComarkElement[] => {
+      const out: ComarkElement[] = []
+      for (const row of src) {
+        const el = h.serializeBlocks([row])[0] as ComarkElement | undefined
+        if (el) out.push(el)
+      }
+      return out
     }
+    const headerRows = serializeRows(rows.slice(0, split))
+    const bodyRows = serializeRows(rows.slice(split))
 
     const children: ComarkNode[] = []
     if (headerRows.length > 0) children.push(['thead', {}, ...headerRows])
@@ -54,7 +64,20 @@ export const tableSpec: NodeSpec = {
       }
     }
 
-    const out: JSONContent = { type: 'table', content: rows }
+    /* PM's Table schema is `tableRow+`; a rowless table (odd hand-authored AST)
+       needs a minimal 1×1 cell or the doc is invalid. */
+    const out: JSONContent = {
+      type: 'table',
+      content:
+        rows.length > 0
+          ? rows
+          : [
+              {
+                type: 'tableRow',
+                content: [{ type: 'tableCell', content: [{ type: 'paragraph' }] }],
+              },
+            ],
+    }
     if (Object.keys(htmlAttrs).length > 0) out.attrs = { htmlAttrs }
     return out
   },
@@ -131,7 +154,11 @@ function makeCellSpec(pmName: 'tableHeader' | 'tableCell', tag: 'th' | 'td'): No
       if (semantic.rowspan != null && Number(semantic.rowspan) !== 1) {
         attrs.rowspan = Number(semantic.rowspan)
       }
-      if (semantic.colwidth != null) attrs.colwidth = semantic.colwidth
+      /* PM types colwidth as `number[]`; coerce so a hand-authored string/mixed AST can't corrupt column-resize math. */
+      if (Array.isArray(semantic.colwidth)) {
+        const cw = semantic.colwidth.map((n) => Number(n)).filter((n) => Number.isFinite(n))
+        if (cw.length > 0) attrs.colwidth = cw
+      }
       if (typeof semantic.align === 'string' && semantic.align.length > 0) {
         attrs.align = semantic.align
       }

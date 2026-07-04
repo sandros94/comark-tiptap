@@ -77,4 +77,14 @@ describe('codeBlockSpec', () => {
     expect(pm.attrs).toBeUndefined()
     expect(codeBlockSpec.toComark(pm, helpers)).toEqual(original)
   })
+
+  it('preserves an explicit empty filename (truthy check would drop it)', () => {
+    const pm = {
+      type: 'codeBlock',
+      attrs: { filename: '' },
+      content: [{ type: 'text', text: 'x' }],
+    }
+    const out = codeBlockSpec.toComark(pm, helpers) as ComarkElement
+    expect((out[1] as Record<string, unknown>).filename).toBe('')
+  })
 })

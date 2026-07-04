@@ -29,6 +29,8 @@ export type {
   ComarkCommentTuple,
   ComarkElement,
   ComarkElementAttributes,
+  ComarkErrorContext,
+  ComarkErrorHandler,
   ComarkKitOptions,
   ComarkNode,
   ComarkText,

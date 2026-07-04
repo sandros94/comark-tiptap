@@ -11,9 +11,10 @@ export const imageSpec: NodeSpec = {
 
   toComark(node: JSONContent): ComarkElement {
     const semantic: Record<string, unknown> = {}
-    if (node.attrs?.src) semantic.src = node.attrs.src
-    if (node.attrs?.alt) semantic.alt = node.attrs.alt
-    if (node.attrs?.title) semantic.title = node.attrs.title
+    /* `!= null` (not truthy): an explicit empty `alt=""` is a meaningful decorative-image marker and must survive. */
+    if (node.attrs?.src != null) semantic.src = node.attrs.src
+    if (node.attrs?.alt != null) semantic.alt = node.attrs.alt
+    if (node.attrs?.title != null) semantic.title = node.attrs.title
     /* Comark stores numeric attrs as strings (`{width="320"}`); normalise on output so the AST stays stable across DOM round-trips that may coerce them to numbers. */
     if (node.attrs?.width != null) semantic.width = String(node.attrs.width)
     if (node.attrs?.height != null) semantic.height = String(node.attrs.height)

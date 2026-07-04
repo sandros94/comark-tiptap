@@ -46,13 +46,20 @@ describe('bulletListSpec', () => {
     const pm = bulletListSpec.fromComark(original, helpers)!
     expect(bulletListSpec.toComark(pm, helpers)).toEqual(original)
   })
+
+  it('seeds one empty item for a childless list (`- ` alone is invalid PM otherwise)', () => {
+    // `parse('- \n')` yields `['ul', {}]`; PM's `listItem+` schema rejects an
+    // empty list, so we synthesize a single empty item.
+    const pm = bulletListSpec.fromComark(['ul', {}] as ComarkElement, helpers)!
+    expect(pm.content).toEqual([{ type: 'listItem', content: [{ type: 'paragraph' }] }])
+  })
 })
 
 describe('orderedListSpec', () => {
-  it('preserves `start` verbatim (Comark stores it as a string)', () => {
+  it('coerces `start` to a number for PM (Comark carries it as a string)', () => {
     const original: ComarkElement = ['ol', { start: '5' }, ['li', {}, 'a']]
     const pm = orderedListSpec.fromComark(original, helpers)!
-    expect(pm.attrs).toEqual({ start: '5' })
+    expect(pm.attrs).toEqual({ start: 5 })
     expect(orderedListSpec.toComark(pm, helpers)).toEqual(original)
   })
 
@@ -66,8 +73,13 @@ describe('orderedListSpec', () => {
   it('preserves both `start` and htmlAttrs', () => {
     const original: ComarkElement = ['ol', { start: '3', class: 'numbered' }, ['li', {}, 'a']]
     const pm = orderedListSpec.fromComark(original, helpers)!
-    expect(pm.attrs).toEqual({ start: '3', htmlAttrs: { class: 'numbered' } })
+    expect(pm.attrs).toEqual({ start: 3, htmlAttrs: { class: 'numbered' } })
     expect(orderedListSpec.toComark(pm, helpers)).toEqual(original)
+  })
+
+  it('seeds one empty item for a childless ordered list', () => {
+    const pm = orderedListSpec.fromComark(['ol', {}] as ComarkElement, helpers)!
+    expect(pm.content).toEqual([{ type: 'listItem', content: [{ type: 'paragraph' }] }])
   })
 })
 

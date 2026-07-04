@@ -49,4 +49,11 @@ describe('blockquoteSpec', () => {
     const pm = blockquoteSpec.fromComark(original, helpers)!
     expect(blockquoteSpec.toComark(pm, helpers)).toEqual(original)
   })
+
+  it('seeds an empty paragraph for a childless blockquote (`>` alone is invalid PM otherwise)', () => {
+    // `parse('>\n')` yields `['blockquote', {}]`; PM's `block+` schema rejects
+    // an empty blockquote, so we must synthesize a placeholder child.
+    const pm = blockquoteSpec.fromComark(['blockquote', {}] as ComarkElement, helpers)!
+    expect(pm.content).toEqual([{ type: 'paragraph' }])
+  })
 })

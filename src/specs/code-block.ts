@@ -11,11 +11,12 @@ export const codeBlockSpec: NodeSpec = {
   toComark(node: JSONContent): ComarkElement {
     const semantic: Record<string, unknown> = {}
     if (node.attrs?.language) semantic.language = node.attrs.language
-    if (node.attrs?.filename) semantic.filename = node.attrs.filename
+    /* `!= null`: an explicit empty `filename`/`meta` (or `meta: 0`) is still user intent. */
+    if (node.attrs?.filename != null) semantic.filename = node.attrs.filename
     if (Array.isArray(node.attrs?.highlights) && node.attrs.highlights.length > 0) {
       semantic.highlights = node.attrs.highlights
     }
-    if (node.attrs?.meta) semantic.meta = node.attrs.meta
+    if (node.attrs?.meta != null) semantic.meta = node.attrs.meta
 
     const preAttrs = mergeAttrs(
       semantic,

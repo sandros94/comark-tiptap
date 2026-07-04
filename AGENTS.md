@@ -43,6 +43,7 @@ src/
   index.ts              # core barrel
   kit.ts                # ComarkKit — assembles StarterKit + tables + image + comark nodes + serializer
   serializer.ts         # ComarkSerializer extension + createSerializer (pure dispatcher) + PM↔Comark commands
+  content.ts            # @internal content-routing helpers shared by the bindings (applyContent/readByFlavor/isComarkTreeLike/safeJson)
   attrs.ts              # ComarkAttrs — global `htmlAttrs` bag via addGlobalAttributes
   style.ts              # operational stylesheet (comment/template/component markers)
   types.ts              # NodeSpec / MarkSpec / ComarkHelpers + re-exported comark types
@@ -64,6 +65,8 @@ test/                   # mirrors src/ (imports ../src/…); DOM tests opt into 
 ```
 
 The framework-agnostic `ContentType` / `ContentValue` / `SetterContext` / `SetterInput` types live in core (`src/types.ts`, exported from `comark-tiptap`); each binding imports and re-exports them. `SetterContext.editor` is typed as `@tiptap/core`'s `Editor` (React's `Editor` _is_ it; Vue's extends it).
+
+The identical content-dispatch/read logic each binding needs (`applyContent`, `readByFlavor`, `isComarkTreeLike`, `safeJson`) lives once in `src/content.ts`, exported `@internal` from the barrel and imported by the bindings by package name. The stateful shadow-guard orchestration (echo-loop dedup, seed sequencing) stays per-binding — it's framework-shaped (Vue `watch`/emit vs React `useEffect`/`onChange`) and doesn't factor cleanly into a shared primitive.
 
 ### Key design patterns
 

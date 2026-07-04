@@ -1,7 +1,11 @@
 import type { AnyExtension, Content, EditorOptions } from '@tiptap/core'
 import { Editor } from '@tiptap/vue-3'
 import {
+  applyContent,
   ComarkKit,
+  isComarkTreeLike,
+  readByFlavor,
+  type ComarkErrorHandler,
   type ComarkKitOptions,
   type ComarkTree,
   type ContentType,
@@ -75,6 +79,13 @@ export interface UseComarkEditorOptions {
     'extensions' | 'content' | 'onCreate' | 'onUpdate' | 'onDestroy'
   >
 
+  /**
+   * Observe async parse / render / AST-JSON failures the kit otherwise
+   * swallows to `console.warn`. Forwarded to `ComarkKit`'s serializer;
+   * also fires for the wrapper's own markdown-render failures.
+   */
+  onError?: ComarkErrorHandler
+
   /** Called once when the editor instance has been created. */
   onCreate?: (editor: Editor) => void
   /** Called on every transaction that changes the document. */
@@ -127,70 +138,6 @@ export interface UseComarkEditorReturn {
 
 const DEFAULT_CONTENT_TYPE: ContentType = 'markdown'
 
-/*
- * Apply a content value with the right command for the requested flavor.
- * Shared by `setContent` and the prop-driven watcher.
- */
-function applyContent(
-  editor: Editor,
-  value: ContentValue,
-  contentType: ContentType,
-  options: SetComarkContentOptions = {},
-): void {
-  const baseOpts = {
-    emitUpdate: options.emitUpdate ?? true,
-    errorOnInvalidContent: options.errorOnInvalidContent,
-  }
-  switch (contentType) {
-    case 'ast':
-      /*
-       * setComarkAst handles both ComarkTree objects and JSON-encoded
-       * strings; PM JSON / markdown shapes here are a misuse and return
-       * false.
-       */
-      editor.commands.setComarkAst(value as ComarkTree | string, baseOpts)
-      return
-    case 'markdown':
-      /*
-       * String → comark.parse (async). An object with a 'markdown'
-       * contentType is unusual; fall through to setContent, which
-       * auto-detects ComarkTree objects and otherwise treats it as PM
-       * JSON.
-       */
-      if (typeof value === 'string') {
-        editor.commands.setComarkMarkdown(value, baseOpts)
-      } else {
-        editor.commands.setContent(value as Content, baseOpts)
-      }
-      return
-    case 'html':
-      editor.commands.setContent(value as Content, { ...baseOpts, contentType: 'html' })
-      return
-    case 'json':
-      editor.commands.setContent(value as Content, { ...baseOpts, contentType: 'json' })
-      return
-  }
-}
-
-/* Read the current editor content in the requested flavor. */
-function readContent(editor: Editor, contentType: ContentType): ContentValue | null {
-  switch (contentType) {
-    case 'ast':
-      return editor.storage.comark.getAst()
-    case 'markdown':
-      /*
-       * Markdown reads are async; returning a Promise here would force
-       * every caller to await. The setter's functional-updater form
-       * awaits it instead.
-       */
-      return null
-    case 'html':
-      return editor.getHTML()
-    case 'json':
-      return editor.getJSON() as JSONContent
-  }
-}
-
 /**
  * Create and manage a Comark-configured Tiptap editor inside a Vue
  * setup scope. Builds `ComarkKit` (plus any extra `extensions` /
@@ -218,6 +165,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
     extensions = [],
     kitOptions,
     editorOptions,
+    onError,
     onCreate,
     onUpdate,
     onDestroy,
@@ -229,9 +177,14 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
     ...components,
     ...((kitOptions?.components as ReadonlyArray<ComarkVueComponentExports> | undefined) ?? []),
   ]
+  /* Route the composable-level onError into the serializer so core parse
+     failures reach it too; a kitOptions.serializer.onError still wins. */
+  const serializer =
+    onError !== undefined ? { onError, ...kitOptions?.serializer } : kitOptions?.serializer
   const allExtensions: AnyExtension[] = [
     ComarkKit.configure({
       ...kitOptions,
+      ...(serializer ? { serializer } : {}),
       components: mergedComponents,
     }),
     ...extensions,
@@ -340,7 +293,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
       const current =
         ct === 'markdown'
           ? ((await e.storage.comark.getMarkdown()) as ContentValue)
-          : (readContent(e, ct) as ContentValue)
+          : (readByFlavor(e, ct) as ContentValue)
       next = await (
         input as (ctx: SetterContext<ContentValue>) => ContentValue | Promise<ContentValue>
       )({
@@ -373,15 +326,4 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
     getJson,
     getHtml,
   }
-}
-
-// #region internals
-
-function isComarkTreeLike(v: unknown): v is ComarkTree {
-  return (
-    !!v &&
-    typeof v === 'object' &&
-    'nodes' in (v as Record<string, unknown>) &&
-    Array.isArray((v as { nodes: unknown }).nodes)
-  )
 }

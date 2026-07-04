@@ -16,6 +16,9 @@ export type {
   SetterInput,
 } from './types'
 
+/* @internal — content-routing helpers shared by the framework bindings; not part of the public API. */
+export { applyContent, isComarkTreeLike, readByFlavor, safeJson } from './content'
+
 export { ComarkKit, type ComarkKitOptions } from './kit'
 
 // Serializer surface
@@ -24,6 +27,8 @@ export {
   comarkToPmDoc,
   createSerializer,
   pmDocToComark,
+  type ComarkErrorContext,
+  type ComarkErrorHandler,
   type ComarkSerializerOptions,
   type ComarkSerializerStorage,
   type SerializerSpecs,

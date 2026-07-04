@@ -11,6 +11,10 @@
     "tiptap",
     "vue"
   ],
+  "homepage": "https://github.com/sandros94/comark-tiptap#readme",
+  "bugs": {
+    "url": "https://github.com/sandros94/comark-tiptap/issues"
+  },
   "license": "MIT",
   "author": {
     "name": "Sandro Circi",
@@ -79,7 +83,6 @@
     "changelogen": "^0.6.2",
     "comark": "^0.3.1",
     "happy-dom": "^20.10.6",
-    "nano-staged": "^1.0.2",
     "obuild": "^0.4.37",
     "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
@@ -126,12 +129,18 @@
     "comark-tiptap": "link:."
   },
   "simple-git-hooks": {
-    "pre-commit": "./node_modules/.bin/nano-staged"
+    "pre-commit": "pnpm stub && pnpm lint && pnpm typecheck"
   },
-  "nano-staged": {
-    "*.{js,ts,tsx,mjs,cjs,json,yml,md,vue}": [
-      "pnpm run fmt"
-    ]
-  },
-  "packageManager": "pnpm@10.33.1"
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "10.33.1",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": ">=24.17",
+      "onFail": "error"
+    }
+  }
 }

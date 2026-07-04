@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/vue-3'
 import type {
+  ComarkErrorHandler,
   ComarkTree,
   ContentType,
   ContentValue,
@@ -46,6 +47,12 @@ export interface ComarkEditorProps {
 
   /** Forwarded to `ComarkKit.configure(...)`. */
   kitOptions?: UseComarkEditorOptions['kitOptions']
+
+  /**
+   * Observe async parse / render / AST-JSON failures the kit otherwise
+   * swallows to `console.warn`.
+   */
+  onError?: ComarkErrorHandler
 }
 
 /**

@@ -490,7 +490,7 @@ describe('ComarkSerializer — `setComarkAst` accepts both objects and JSON-enco
     const editor = track(makeEditor())
     const result = editor.commands.setComarkAst('{not-json')
     expect(result).toBe(false)
-    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/setComarkAst|did not parse/))
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('setComarkAst'), expect.anything())
     warn.mockRestore()
   })
 
@@ -500,7 +500,7 @@ describe('ComarkSerializer — `setComarkAst` accepts both objects and JSON-enco
     // Valid JSON, but no `nodes` array — should be rejected, not coerced.
     const result = editor.commands.setComarkAst(JSON.stringify({ type: 'doc', content: [] }))
     expect(result).toBe(false)
-    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/setComarkAst|did not parse/))
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('setComarkAst'), expect.anything())
     warn.mockRestore()
   })
 })
@@ -584,5 +584,40 @@ describe('ComarkSerializer overrides — Comark AST objects auto-detected', () =
     expect(blocks[0]?.type).toBe('heading')
     expect(blocks[0]?.attrs?.level).toBe(2)
     expect(editor.storage.comark.frontmatter).toEqual({ title: 'from-tree' })
+  })
+})
+
+describe('ComarkSerializer — onError hook', () => {
+  it('routes swallowed failures to onError (with phase) instead of console.warn', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const phases: string[] = []
+    const editor = track(
+      new Editor({
+        extensions: [
+          ComarkKit.configure({
+            serializer: {
+              onError: (_err, ctx) => phases.push(ctx.phase),
+            },
+          }),
+        ],
+      }),
+    )
+
+    editor.commands.setComarkAst('{not json') // JSON parse failure
+    editor.commands.setComarkAst(JSON.stringify({ type: 'doc' })) // valid JSON, wrong shape
+    editor.commands.setContent('{bad', { contentType: 'json' }) // JSON parse failure
+
+    expect(phases).toEqual(['setComarkAst', 'setComarkAst', 'setContent'])
+    // onError replaces the default warn.
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('falls back to console.warn when no onError is configured', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const editor = track(makeEditor())
+    editor.commands.setComarkAst('{not json')
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
   })
 })

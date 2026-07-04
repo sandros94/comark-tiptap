@@ -19,9 +19,12 @@ export const blockquoteSpec: NodeSpec = {
   fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...children] = el
     const { htmlAttrs } = splitAttrs(rawAttrs, [])
+    /* PM's Blockquote schema is `block+`; a childless blockquote (e.g. `>\n`
+       parses to `['blockquote',{}]`) needs a placeholder or the doc is invalid. */
+    const content = h.parseBlocks(children)
     const out: JSONContent = {
       type: 'blockquote',
-      content: h.parseBlocks(children),
+      content: content.length > 0 ? content : [{ type: 'paragraph' }],
     }
     if (Object.keys(htmlAttrs).length > 0) out.attrs = { htmlAttrs }
     return out

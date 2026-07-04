@@ -10,7 +10,13 @@ import {
 } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import type { AnyExtension } from '@tiptap/core'
-import type { ContentType, ContentValue } from 'comark-tiptap'
+import {
+  readByFlavor,
+  safeJson,
+  type ComarkErrorHandler,
+  type ContentType,
+  type ContentValue,
+} from 'comark-tiptap'
 import { useComarkEditor, type UseComarkEditorOptions } from './use-comark-editor'
 import type { ComarkEditorProps, ComarkEditorSlots } from './comark-editor.types'
 import type { ComarkVueComponentExports } from './define-component'
@@ -55,6 +61,7 @@ export const ComarkEditor = defineComponent({
       type: Object as PropType<UseComarkEditorOptions['kitOptions']>,
       default: undefined,
     },
+    onError: { type: Function as PropType<ComarkErrorHandler>, default: undefined },
     // v-model plumbing (defineModel expands to these at compile time).
     modelValue: {
       type: [Object, String, Array] as PropType<ContentValue>,
@@ -116,13 +123,6 @@ export const ComarkEditor = defineComponent({
      * back as a fresh emit.
      */
     let shadow: string | null = null
-    const safeJson = (v: unknown): string => {
-      try {
-        return JSON.stringify(v)
-      } catch {
-        return ''
-      }
-    }
 
     // Seed: `:content` wins (explicit input); else v-model's initial value.
     const seedAtMount: ContentValue | undefined =
@@ -137,6 +137,7 @@ export const ComarkEditor = defineComponent({
           extensions: props.extensions,
           kitOptions: props.kitOptions,
           editorOptions: props.editorOptions,
+          onError: props.onError,
           onCreate: (e) => {
             /*
              * Initial v-model sync, two paths due to the markdown
@@ -175,8 +176,9 @@ export const ComarkEditor = defineComponent({
           if (md === shadow) return
           shadow = md
           setModel(md)
-        } catch {
-          // Swallow: keeping the editor alive beats surfacing a render error here.
+        } catch (err) {
+          /* Keep the editor alive over a render error; surface it if observed. */
+          e.storage.comark.onError?.(err, { phase: 'render' })
         }
         return
       }
@@ -192,26 +194,13 @@ export const ComarkEditor = defineComponent({
       if (outputFlavor.value === 'markdown') {
         try {
           shadow = await e.storage.comark.getMarkdown()
-        } catch {
+        } catch (err) {
           shadow = null
+          e.storage.comark.onError?.(err, { phase: 'render' })
         }
         return
       }
       shadow = safeJson(readByFlavor(e, outputFlavor.value))
-    }
-
-    function readByFlavor(e: Editor, ct: ContentType): unknown {
-      switch (ct) {
-        case 'ast':
-          return e.storage.comark.getAst()
-        case 'html':
-          return e.getHTML()
-        case 'json':
-          return e.getJSON()
-        case 'markdown':
-          // markdown is async; handled by the caller separately.
-          return null
-      }
     }
 
     /*
