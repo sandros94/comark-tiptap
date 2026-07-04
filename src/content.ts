@@ -1,6 +1,6 @@
-import type { Content, Editor } from '@tiptap/core'
-import type { SetComarkContentOptions } from './serializer'
-import type { ComarkTree, ContentType, ContentValue, JSONContent } from './types'
+import type { Content, Editor } from "@tiptap/core";
+import type { SetComarkContentOptions } from "./serializer";
+import type { ComarkTree, ContentType, ContentValue, JSONContent } from "./types";
 
 /*
  * Content-routing helpers shared by the serializer and the framework bindings.
@@ -18,10 +18,10 @@ import type { ComarkTree, ContentType, ContentValue, JSONContent } from './types
 export function isComarkTreeLike(v: unknown): v is ComarkTree {
   return (
     !!v &&
-    typeof v === 'object' &&
-    'nodes' in (v as Record<string, unknown>) &&
+    typeof v === "object" &&
+    "nodes" in (v as Record<string, unknown>) &&
     Array.isArray((v as { nodes: unknown }).nodes)
-  )
+  );
 }
 
 /**
@@ -40,21 +40,21 @@ export function applyContent(
   const baseOpts = {
     emitUpdate: options.emitUpdate ?? true,
     errorOnInvalidContent: options.errorOnInvalidContent,
-  }
+  };
   switch (contentType) {
-    case 'ast':
-      editor.commands.setComarkAst(value as ComarkTree | string, baseOpts)
-      return
-    case 'markdown':
-      if (typeof value === 'string') editor.commands.setComarkMarkdown(value, baseOpts)
-      else editor.commands.setContent(value as Content, baseOpts)
-      return
-    case 'html':
-      editor.commands.setContent(value as Content, { ...baseOpts, contentType: 'html' })
-      return
-    case 'json':
-      editor.commands.setContent(value as Content, { ...baseOpts, contentType: 'json' })
-      return
+    case "ast":
+      editor.commands.setComarkAst(value as ComarkTree | string, baseOpts);
+      return;
+    case "markdown":
+      if (typeof value === "string") editor.commands.setComarkMarkdown(value, baseOpts);
+      else editor.commands.setContent(value as Content, baseOpts);
+      return;
+    case "html":
+      editor.commands.setContent(value as Content, { ...baseOpts, contentType: "html" });
+      return;
+    case "json":
+      editor.commands.setContent(value as Content, { ...baseOpts, contentType: "json" });
+      return;
   }
 }
 
@@ -66,14 +66,14 @@ export function applyContent(
  */
 export function readByFlavor(editor: Editor, contentType: ContentType): ContentValue | null {
   switch (contentType) {
-    case 'ast':
-      return editor.storage.comark.getAst()
-    case 'html':
-      return editor.getHTML()
-    case 'json':
-      return editor.getJSON() as JSONContent
-    case 'markdown':
-      return null
+    case "ast":
+      return editor.storage.comark.getAst();
+    case "html":
+      return editor.getHTML();
+    case "json":
+      return editor.getJSON() as JSONContent;
+    case "markdown":
+      return null;
   }
 }
 
@@ -85,8 +85,8 @@ export function readByFlavor(editor: Editor, contentType: ContentType): ContentV
  */
 export function safeJson(v: unknown): string {
   try {
-    return JSON.stringify(v)
+    return JSON.stringify(v);
   } catch {
-    return ''
+    return "";
   }
 }

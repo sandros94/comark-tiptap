@@ -1,4 +1,4 @@
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes } from "@tiptap/core";
 
 /**
  * Tiptap node for Comark slot templates (`::template[name]`). The
@@ -7,9 +7,9 @@ import { Node, mergeAttributes } from '@tiptap/core'
  * `ComarkAttrs`.
  */
 export const ComarkTemplate = Node.create({
-  name: 'comarkTemplate',
-  group: 'block',
-  content: 'block+',
+  name: "comarkTemplate",
+  group: "block",
+  content: "block+",
   defining: true,
   selectable: true,
   draggable: false,
@@ -18,17 +18,17 @@ export const ComarkTemplate = Node.create({
     return {
       name: {
         default: null,
-        parseHTML: (el) => el.getAttribute('data-slot'),
-        renderHTML: (attrs) => (attrs.name ? { 'data-slot': attrs.name as string } : {}),
+        parseHTML: (el) => el.getAttribute("data-slot"),
+        renderHTML: (attrs) => (attrs.name ? { "data-slot": attrs.name as string } : {}),
       },
-    }
+    };
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-comark-template]' }]
+    return [{ tag: "div[data-comark-template]" }];
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-comark-template': '' }), 0]
+    return ["div", mergeAttributes(HTMLAttributes, { "data-comark-template": "" }), 0];
   },
-})
+});

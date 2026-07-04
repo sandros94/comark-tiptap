@@ -60,13 +60,13 @@ span[data-comark-component]:not([data-node-view-wrapper]) {
   border-radius: 0.25em;
   opacity: 0.85;
 }
-`
+`;
 
 /**
  * Data-attribute marking the auto-injected `<style>` tag; a single tag is
  * shared per document.
  */
-export const COMARK_STYLE_MARKER = 'data-comark-style'
+export const COMARK_STYLE_MARKER = "data-comark-style";
 
 /**
  * Idempotently inserts the kit stylesheet into `document.head`, returning
@@ -77,15 +77,15 @@ export const COMARK_STYLE_MARKER = 'data-comark-style'
  * @returns The `<style>` element, or `null` under SSR.
  */
 export function injectComarkStyles(nonce?: string): HTMLStyleElement | null {
-  if (typeof document === 'undefined') return null
+  if (typeof document === "undefined") return null;
 
-  const existing = document.querySelector<HTMLStyleElement>(`style[${COMARK_STYLE_MARKER}]`)
-  if (existing) return existing
+  const existing = document.querySelector<HTMLStyleElement>(`style[${COMARK_STYLE_MARKER}]`);
+  if (existing) return existing;
 
-  const styleNode = document.createElement('style')
-  styleNode.setAttribute(COMARK_STYLE_MARKER, '')
-  if (nonce) styleNode.setAttribute('nonce', nonce)
-  styleNode.textContent = comarkStyle
-  document.head.appendChild(styleNode)
-  return styleNode
+  const styleNode = document.createElement("style");
+  styleNode.setAttribute(COMARK_STYLE_MARKER, "");
+  if (nonce) styleNode.setAttribute("nonce", nonce);
+  styleNode.textContent = comarkStyle;
+  document.head.appendChild(styleNode);
+  return styleNode;
 }

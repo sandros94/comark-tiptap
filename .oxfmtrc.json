@@ -2,9 +2,9 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
 
   "tabWidth": 2,
-  "singleQuote": true,
+  "singleQuote": false,
   "quoteProps": "consistent",
-  "semi": false,
+  "semi": true,
   "trailingComma": "all",
 
   "ignorePatterns": [

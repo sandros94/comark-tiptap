@@ -7,19 +7,19 @@ import {
   type SlotsType,
   type VNodeArrayChildren,
   type VNodeChild,
-} from 'vue'
-import { Editor, EditorContent } from '@tiptap/vue-3'
-import type { AnyExtension } from '@tiptap/core'
+} from "vue";
+import { Editor, EditorContent } from "@tiptap/vue-3";
+import type { AnyExtension } from "@tiptap/core";
 import {
   readByFlavor,
   safeJson,
   type ComarkErrorHandler,
   type ContentType,
   type ContentValue,
-} from 'comark-tiptap'
-import { useComarkEditor, type UseComarkEditorOptions } from './use-comark-editor'
-import type { ComarkEditorProps, ComarkEditorSlots } from './comark-editor.types'
-import type { ComarkVueComponentExports } from './define-component'
+} from "comark-tiptap";
+import { useComarkEditor, type UseComarkEditorOptions } from "./use-comark-editor";
+import type { ComarkEditorProps, ComarkEditorSlots } from "./comark-editor.types";
+import type { ComarkVueComponentExports } from "./define-component";
 
 /**
  * `<ComarkEditor>` — thin wrapper over `@tiptap/vue-3`'s `EditorContent`.
@@ -38,13 +38,13 @@ import type { ComarkVueComponentExports } from './define-component'
  * ```
  */
 export const ComarkEditor = defineComponent({
-  name: 'ComarkEditor',
+  name: "ComarkEditor",
   inheritAttrs: false,
 
   props: {
     editor: { type: Object as PropType<Editor>, default: undefined },
     content: {
-      type: [Object, String, Array] as PropType<ComarkEditorProps['content']>,
+      type: [Object, String, Array] as PropType<ComarkEditorProps["content"]>,
       default: undefined,
     },
     contentType: { type: String as PropType<ContentType>, default: undefined },
@@ -54,11 +54,11 @@ export const ComarkEditor = defineComponent({
     },
     extensions: { type: Array as PropType<ReadonlyArray<AnyExtension>>, default: undefined },
     editorOptions: {
-      type: Object as PropType<UseComarkEditorOptions['editorOptions']>,
+      type: Object as PropType<UseComarkEditorOptions["editorOptions"]>,
       default: undefined,
     },
     kitOptions: {
-      type: Object as PropType<UseComarkEditorOptions['kitOptions']>,
+      type: Object as PropType<UseComarkEditorOptions["kitOptions"]>,
       default: undefined,
     },
     onError: { type: Function as PropType<ComarkErrorHandler>, default: undefined },
@@ -74,9 +74,9 @@ export const ComarkEditor = defineComponent({
   },
 
   emits: {
-    'update:modelValue': (_value: ContentValue) => true,
-    'ready': (_editor: Editor) => true,
-    'update': (_editor: Editor) => true,
+    "update:modelValue": (_value: ContentValue) => true,
+    "ready": (_editor: Editor) => true,
+    "update": (_editor: Editor) => true,
   },
 
   slots: Object as SlotsType<ComarkEditorSlots>,
@@ -87,16 +87,16 @@ export const ComarkEditor = defineComponent({
      * modifier). Reads go through `props.modelValue`; writes emit
      * `update:modelValue` — the shadow guard below stops the echo.
      */
-    const modelValue = (): ContentValue | undefined => props.modelValue
-    const setModel = (value: ContentValue): void => emit('update:modelValue', value)
+    const modelValue = (): ContentValue | undefined => props.modelValue;
+    const setModel = (value: ContentValue): void => emit("update:modelValue", value);
 
     function pickModifier(): ContentType | null {
-      const m = props.modelModifiers
-      if (m.html) return 'html'
-      if (m.json) return 'json'
-      if (m.ast) return 'ast'
-      if (m.markdown) return 'markdown'
-      return null
+      const m = props.modelModifiers;
+      if (m.html) return "html";
+      if (m.json) return "json";
+      if (m.ast) return "ast";
+      if (m.markdown) return "markdown";
+      return null;
     }
 
     /*
@@ -104,8 +104,8 @@ export const ComarkEditor = defineComponent({
      * The bound model is always this flavor in both directions.
      */
     const outputFlavor = computed<ContentType>(
-      () => pickModifier() ?? props.contentType ?? 'markdown',
-    )
+      () => pickModifier() ?? props.contentType ?? "markdown",
+    );
 
     /*
      * INPUT flavor: how the seed is parsed. With `:content`, the
@@ -113,20 +113,20 @@ export const ComarkEditor = defineComponent({
      * the seed matches the v-model's flavor.
      */
     const inputFlavor = computed<ContentType>(() => {
-      if (props.content !== undefined) return props.contentType ?? 'markdown'
-      return pickModifier() ?? props.contentType ?? 'markdown'
-    })
+      if (props.content !== undefined) return props.contentType ?? "markdown";
+      return pickModifier() ?? props.contentType ?? "markdown";
+    });
 
     /*
      * JSON-shadow loop guard: dedupes the v-model echo. Every push (in or
      * out) stamps the shadow, so the push v-model triggers doesn't bounce
      * back as a fresh emit.
      */
-    let shadow: string | null = null
+    let shadow: string | null = null;
 
     // Seed: `:content` wins (explicit input); else v-model's initial value.
     const seedAtMount: ContentValue | undefined =
-      props.content !== undefined ? props.content : modelValue()
+      props.content !== undefined ? props.content : modelValue();
 
     const internal = props.editor
       ? null
@@ -150,57 +150,57 @@ export const ComarkEditor = defineComponent({
              */
             if (modelValue() !== undefined) {
               const seedIsAsyncMarkdown =
-                inputFlavor.value === 'markdown' && typeof seedAtMount === 'string'
+                inputFlavor.value === "markdown" && typeof seedAtMount === "string";
               if (seedIsAsyncMarkdown) {
-                void initShadow(e)
+                void initShadow(e);
               } else if (props.content !== undefined) {
-                void pushModelFromEditor(e)
+                void pushModelFromEditor(e);
               } else {
-                void initShadow(e)
+                void initShadow(e);
               }
             }
-            emit('ready', e)
+            emit("ready", e);
           },
           onUpdate: (e) => {
-            emit('update', e)
-            if (modelValue() === undefined) return
-            void pushModelFromEditor(e)
+            emit("update", e);
+            if (modelValue() === undefined) return;
+            void pushModelFromEditor(e);
           },
-        })
+        });
 
     // Read the editor in the output flavor and push to v-model (shadow-guarded).
     async function pushModelFromEditor(e: Editor): Promise<void> {
-      if (outputFlavor.value === 'markdown') {
+      if (outputFlavor.value === "markdown") {
         try {
-          const md = await e.storage.comark.getMarkdown()
-          if (md === shadow) return
-          shadow = md
-          setModel(md)
+          const md = await e.storage.comark.getMarkdown();
+          if (md === shadow) return;
+          shadow = md;
+          setModel(md);
         } catch (err) {
           /* Keep the editor alive over a render error; surface it if observed. */
-          e.storage.comark.onError?.(err, { phase: 'render' })
+          e.storage.comark.onError?.(err, { phase: "render" });
         }
-        return
+        return;
       }
-      const out = readByFlavor(e, outputFlavor.value)
-      const j = safeJson(out)
-      if (j === shadow) return
-      shadow = j
-      setModel(out as ContentValue)
+      const out = readByFlavor(e, outputFlavor.value);
+      const j = safeJson(out);
+      if (j === shadow) return;
+      shadow = j;
+      setModel(out as ContentValue);
     }
 
     // Seed the shadow without touching the model.
     async function initShadow(e: Editor): Promise<void> {
-      if (outputFlavor.value === 'markdown') {
+      if (outputFlavor.value === "markdown") {
         try {
-          shadow = await e.storage.comark.getMarkdown()
+          shadow = await e.storage.comark.getMarkdown();
         } catch (err) {
-          shadow = null
-          e.storage.comark.onError?.(err, { phase: 'render' })
+          shadow = null;
+          e.storage.comark.onError?.(err, { phase: "render" });
         }
-        return
+        return;
       }
-      shadow = safeJson(readByFlavor(e, outputFlavor.value))
+      shadow = safeJson(readByFlavor(e, outputFlavor.value));
     }
 
     /*
@@ -211,22 +211,22 @@ export const ComarkEditor = defineComponent({
     watch(
       () => props.modelValue,
       (next) => {
-        if (next === undefined) return
-        if (!internal) return
-        if (outputFlavor.value === 'markdown' && typeof next === 'string') {
-          if (next === shadow) return
-          shadow = next
+        if (next === undefined) return;
+        if (!internal) return;
+        if (outputFlavor.value === "markdown" && typeof next === "string") {
+          if (next === shadow) return;
+          shadow = next;
         } else {
-          const j = safeJson(next)
-          if (j === shadow) return
-          shadow = j
+          const j = safeJson(next);
+          if (j === shadow) return;
+          shadow = j;
         }
-        void internal.setContent(next, { contentType: outputFlavor.value })
+        void internal.setContent(next, { contentType: outputFlavor.value });
       },
-    )
+    );
 
-    const editorRef = computed<Editor | undefined>(() => props.editor ?? internal?.editor.value)
-    const isReady = computed(() => editorRef.value !== undefined)
+    const editorRef = computed<Editor | undefined>(() => props.editor ?? internal?.editor.value);
+    const isReady = computed(() => editorRef.value !== undefined);
 
     expose({
       editor: editorRef,
@@ -236,23 +236,23 @@ export const ComarkEditor = defineComponent({
       getMarkdown: internal?.getMarkdown,
       getJson: internal?.getJson,
       getHtml: internal?.getHtml,
-    })
+    });
 
     return () => {
-      const editor = editorRef.value
+      const editor = editorRef.value;
       const children: VNodeArrayChildren = editor
         ? [
             slots.default?.({ editor }) as VNodeChild,
             h(EditorContent, {
               editor,
-              'data-comark-editor-content': '',
+              "data-comark-editor-content": "",
               ...attrs,
             }),
           ]
-        : [slots.fallback?.() as VNodeChild]
-      return h('div', { 'data-comark-editor': '' }, children)
-    }
+        : [slots.fallback?.() as VNodeChild];
+      return h("div", { "data-comark-editor": "" }, children);
+    };
   },
-})
+});
 
-export default ComarkEditor
+export default ComarkEditor;

@@ -1,19 +1,19 @@
-import { ReactNodeViewRenderer, type ReactNodeViewProps } from '@tiptap/react'
+import { ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import {
   defineComarkComponent,
   type ComarkComponentDefinition,
   type ComarkComponentExports,
-} from 'comark-tiptap'
-import type { ComponentType } from 'react'
+} from "comark-tiptap";
+import type { ComponentType } from "react";
 
 /** A React NodeView component, receiving Tiptap's `ReactNodeViewProps`. */
-export type ComarkReactNodeView = ComponentType<ReactNodeViewProps>
+export type ComarkReactNodeView = ComponentType<ReactNodeViewProps>;
 
 /** {@link ComarkComponentDefinition} with `nodeView` narrowed to a React component. */
-export type ComarkReactComponentDefinition = ComarkComponentDefinition<ComarkReactNodeView>
+export type ComarkReactComponentDefinition = ComarkComponentDefinition<ComarkReactNodeView>;
 
 /** {@link ComarkComponentExports} whose `extension` renders `nodeView` via `ReactNodeViewRenderer`. */
-export type ComarkReactComponentExports = ComarkComponentExports<ComarkReactNodeView>
+export type ComarkReactComponentExports = ComarkComponentExports<ComarkReactNodeView>;
 
 /**
  * Wrap the framework-agnostic {@link defineComarkComponent} so a `nodeView`
@@ -32,15 +32,15 @@ export type ComarkReactComponentExports = ComarkComponentExports<ComarkReactNode
 export function defineComarkReactComponent(
   def: ComarkReactComponentDefinition,
 ): ComarkReactComponentExports {
-  const base = defineComarkComponent<ComarkReactNodeView>(def)
-  if (!def.nodeView) return base
+  const base = defineComarkComponent<ComarkReactNodeView>(def);
+  if (!def.nodeView) return base;
 
-  const nodeView = def.nodeView
+  const nodeView = def.nodeView;
   const extension = base.extension.extend({
     addNodeView() {
-      return ReactNodeViewRenderer(nodeView)
+      return ReactNodeViewRenderer(nodeView);
     },
-  })
+  });
 
-  return { ...base, extension }
+  return { ...base, extension };
 }

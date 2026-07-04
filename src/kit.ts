@@ -1,14 +1,14 @@
-import { Extension, type Extensions } from '@tiptap/core'
-import { Image, type ImageOptions } from '@tiptap/extension-image'
-import { TableKit, type TableKitOptions } from '@tiptap/extension-table'
-import { StarterKit, type StarterKitOptions } from '@tiptap/starter-kit'
-import { ComarkAttrs } from './attrs'
-import { ComarkCodeBlock } from './extensions/code-block'
-import { ComarkComment } from './extensions/comment'
-import { type ComarkComponentExports, defineComarkComponent } from './extensions/component'
-import { ComarkTemplate } from './extensions/template'
-import { ComarkSerializer, type ComarkSerializerOptions } from './serializer'
-import { comarkSpecs } from './specs'
+import { Extension, type Extensions } from "@tiptap/core";
+import { Image, type ImageOptions } from "@tiptap/extension-image";
+import { TableKit, type TableKitOptions } from "@tiptap/extension-table";
+import { StarterKit, type StarterKitOptions } from "@tiptap/starter-kit";
+import { ComarkAttrs } from "./attrs";
+import { ComarkCodeBlock } from "./extensions/code-block";
+import { ComarkComment } from "./extensions/comment";
+import { type ComarkComponentExports, defineComarkComponent } from "./extensions/component";
+import { ComarkTemplate } from "./extensions/template";
+import { ComarkSerializer, type ComarkSerializerOptions } from "./serializer";
+import { comarkSpecs } from "./specs";
 
 export interface ComarkKitOptions {
   /**
@@ -23,26 +23,26 @@ export interface ComarkKitOptions {
    * on top, so re-enable either explicitly if needed.
    * @default {}
    */
-  starterKit: Partial<StarterKitOptions> | false
+  starterKit: Partial<StarterKitOptions> | false;
 
   /**
    * Forwarded to `TableKit.configure(...)`. Pass `false` to omit tables.
    * @default {}
    */
-  table: Partial<TableKitOptions> | false
+  table: Partial<TableKitOptions> | false;
 
   /**
    * Forwarded to `Image.configure(...)`. Pass `false` to omit images.
    * @default {}
    */
-  image: Partial<ImageOptions> | false
+  image: Partial<ImageOptions> | false;
 
   /**
    * User-defined components from {@link defineComarkComponent}; each entry
    * contributes a Tiptap node extension and a serialization spec.
    * @default []
    */
-  components: ReadonlyArray<ComarkComponentExports>
+  components: ReadonlyArray<ComarkComponentExports>;
 
   /**
    * Forwarded to `ComarkSerializer.configure(...)`. Only `injectStyles`,
@@ -50,21 +50,21 @@ export interface ComarkKitOptions {
    * Pass just the field you want to override.
    * @default { injectStyles: true, injectNonce: undefined, onError: undefined }
    */
-  serializer: Partial<Pick<ComarkSerializerOptions, 'injectStyles' | 'injectNonce' | 'onError'>>
+  serializer: Partial<Pick<ComarkSerializerOptions, "injectStyles" | "injectNonce" | "onError">>;
 
   /**
    * Enables the comment extension (`<!-- … -->`). Pass `false` to omit it;
    * comment AST nodes from `setComarkAst` are then dropped silently.
    * @default {}
    */
-  comment: false | Record<string, never>
+  comment: false | Record<string, never>;
 
   /**
    * Enables the template extension (`::template[name]`). Pass `false` to
    * omit it.
    * @default {}
    */
-  template: false | Record<string, never>
+  template: false | Record<string, never>;
 }
 
 /**
@@ -86,7 +86,7 @@ export interface ComarkKitOptions {
  * ```
  */
 export const ComarkKit = Extension.create<ComarkKitOptions>({
-  name: 'comarkKit',
+  name: "comarkKit",
 
   addOptions(): ComarkKitOptions {
     return {
@@ -97,11 +97,11 @@ export const ComarkKit = Extension.create<ComarkKitOptions>({
       serializer: { injectStyles: true, injectNonce: undefined },
       comment: {},
       template: {},
-    }
+    };
   },
 
   addExtensions(): Extensions {
-    const exts: Extensions = []
+    const exts: Extensions = [];
 
     /*
      * Force codeBlock/underline off regardless of consumer config;
@@ -116,29 +116,29 @@ export const ComarkKit = Extension.create<ComarkKitOptions>({
           ...this.options.starterKit,
         }),
         ComarkCodeBlock,
-      )
+      );
     }
 
     if (this.options.table !== false) {
-      exts.push(TableKit.configure(this.options.table))
+      exts.push(TableKit.configure(this.options.table));
     }
     if (this.options.image !== false) {
       // Comark images are always inline; pass `inline: false` for block images.
-      exts.push(Image.configure({ inline: true, ...this.options.image }))
+      exts.push(Image.configure({ inline: true, ...this.options.image }));
     }
     if (this.options.comment !== false) {
-      exts.push(ComarkComment)
+      exts.push(ComarkComment);
     }
     if (this.options.template !== false) {
-      exts.push(ComarkTemplate)
+      exts.push(ComarkTemplate);
     }
 
     // Global `htmlAttrs` for every stock node and mark.
-    exts.push(ComarkAttrs)
+    exts.push(ComarkAttrs);
 
     // Each component adds its node extension here; its spec is collected below.
     for (const c of this.options.components) {
-      exts.push(c.extension)
+      exts.push(c.extension);
     }
 
     // Pushed last so it sees every contributed extension.
@@ -152,11 +152,11 @@ export const ComarkKit = Extension.create<ComarkKitOptions>({
         injectNonce: this.options.serializer?.injectNonce,
         onError: this.options.serializer?.onError,
       }),
-    )
+    );
 
-    return exts
+    return exts;
   },
-})
+});
 
 /** Re-exported for assembling extensions by hand, without `ComarkKit`. */
-export { defineComarkComponent }
+export { defineComarkComponent };

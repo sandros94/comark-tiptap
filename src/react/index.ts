@@ -1,20 +1,20 @@
-export { ComarkEditor, type ComarkEditorProps } from './comark-editor'
+export { ComarkEditor, type ComarkEditorProps } from "./comark-editor";
 
 export {
   useComarkEditor,
   type SetContentOptions,
   type UseComarkEditorOptions,
   type UseComarkEditorReturn,
-} from './use-comark-editor'
+} from "./use-comark-editor";
 
 export {
   defineComarkReactComponent,
   type ComarkReactComponentDefinition,
   type ComarkReactComponentExports,
-} from './define-component'
+} from "./define-component";
 
 /* Re-export the react `Editor` class for consumer customization. */
-export { Editor } from '@tiptap/react'
+export { Editor } from "@tiptap/react";
 
 /* Re-export the types most users will need from `comark-tiptap`. */
 export type {
@@ -34,4 +34,4 @@ export type {
   SetComarkContentOptions,
   SetterContext,
   SetterInput,
-} from 'comark-tiptap'
+} from "comark-tiptap";

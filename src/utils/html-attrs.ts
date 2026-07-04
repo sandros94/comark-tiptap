@@ -1,4 +1,4 @@
-import type { Attributes } from '@tiptap/core'
+import type { Attributes } from "@tiptap/core";
 
 /*
  * DOM attributes PM/Tiptap manages itself, plus namespace prefixes the kit
@@ -9,21 +9,21 @@ import type { Attributes } from '@tiptap/core'
  * round-trip.
  */
 const PM_INTERNAL_ATTR_PREFIXES = [
-  'data-pm-',
-  'data-prosemirror-',
-  'pm-',
-  'data-node-view-',
-  'data-comark-',
-] as const
+  "data-pm-",
+  "data-prosemirror-",
+  "pm-",
+  "data-node-view-",
+  "data-comark-",
+] as const;
 
-const PM_INTERNAL_ATTR_NAMES = new Set(['contenteditable', 'draggable', 'spellcheck'])
+const PM_INTERNAL_ATTR_NAMES = new Set(["contenteditable", "draggable", "spellcheck"]);
 
 function isInternalAttr(name: string): boolean {
-  if (PM_INTERNAL_ATTR_NAMES.has(name)) return true
+  if (PM_INTERNAL_ATTR_NAMES.has(name)) return true;
   for (const prefix of PM_INTERNAL_ATTR_PREFIXES) {
-    if (name.startsWith(prefix)) return true
+    if (name.startsWith(prefix)) return true;
   }
-  return false
+  return false;
 }
 
 /** Options for {@link htmlAttrSpec}. */
@@ -33,7 +33,7 @@ export interface HtmlAttrSpecOptions {
    * `start` on an ordered list, `colspan` on a cell). Excluded from the
    * `htmlAttrs` bag so a single value never lives in two places.
    */
-  reserved?: readonly string[]
+  reserved?: readonly string[];
 }
 
 /**
@@ -47,7 +47,7 @@ export interface HtmlAttrSpecOptions {
  *      built.
  */
 export function htmlAttrSpec(options: HtmlAttrSpecOptions = {}): Attributes {
-  const reserved = new Set(options.reserved ?? [])
+  const reserved = new Set(options.reserved ?? []);
   return {
     htmlAttrs: {
       /*
@@ -58,28 +58,28 @@ export function htmlAttrSpec(options: HtmlAttrSpecOptions = {}): Attributes {
        */
       default: {} as Record<string, unknown>,
       parseHTML: (el: HTMLElement) => {
-        const out: Record<string, string> = {}
+        const out: Record<string, string> = {};
         for (const attr of Array.from(el.attributes)) {
-          if (reserved.has(attr.name)) continue
-          if (isInternalAttr(attr.name)) continue
-          out[attr.name] = attr.value
+          if (reserved.has(attr.name)) continue;
+          if (isInternalAttr(attr.name)) continue;
+          out[attr.name] = attr.value;
         }
-        return Object.keys(out).length > 0 ? out : null
+        return Object.keys(out).length > 0 ? out : null;
       },
       renderHTML: (attrs: { htmlAttrs?: Record<string, unknown> | null }) => {
-        const bag = attrs.htmlAttrs
-        if (!bag || typeof bag !== 'object') return {}
-        const out: Record<string, string> = {}
+        const bag = attrs.htmlAttrs;
+        if (!bag || typeof bag !== "object") return {};
+        const out: Record<string, string> = {};
         for (const [k, v] of Object.entries(bag)) {
-          if (v === null || v === undefined) continue
-          if (typeof v === 'string') {
-            out[k] = v
-          } else if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') {
-            out[k] = String(v)
+          if (v === null || v === undefined) continue;
+          if (typeof v === "string") {
+            out[k] = v;
+          } else if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
+            out[k] = String(v);
           }
         }
-        return out
+        return out;
       },
     },
-  }
+  };
 }

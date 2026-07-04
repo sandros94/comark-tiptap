@@ -1,5 +1,5 @@
-import { hasNoHtmlAttrs } from './attrs'
-import type { ComarkHelpers, ComarkNode, JSONContent } from '../types'
+import { hasNoHtmlAttrs } from "./attrs";
+import type { ComarkHelpers, ComarkNode, JSONContent } from "../types";
 
 /**
  * Mirror Comark's "single attrless paragraph" autoUnwrap: when `content`
@@ -13,9 +13,9 @@ export function autoUnwrapBlocks(
   content: JSONContent[] | undefined,
   h: ComarkHelpers,
 ): ComarkNode[] {
-  const list = content ?? []
-  if (list.length === 1 && list[0]?.type === 'paragraph' && hasNoHtmlAttrs(list[0])) {
-    return h.serializeInlines(list[0]?.content)
+  const list = content ?? [];
+  if (list.length === 1 && list[0]?.type === "paragraph" && hasNoHtmlAttrs(list[0])) {
+    return h.serializeInlines(list[0]?.content);
   }
-  return h.serializeBlocks(list)
+  return h.serializeBlocks(list);
 }

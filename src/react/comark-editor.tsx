@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ReactNode } from 'react'
-import { EditorContent, type Editor } from '@tiptap/react'
-import type { AnyExtension } from '@tiptap/core'
+import { useEffect, useRef, type ReactNode } from "react";
+import { EditorContent, type Editor } from "@tiptap/react";
+import type { AnyExtension } from "@tiptap/core";
 import {
   readByFlavor,
   safeJson,
@@ -8,41 +8,41 @@ import {
   type ComarkKitOptions,
   type ContentType,
   type ContentValue,
-} from 'comark-tiptap'
-import { useComarkEditor, type UseComarkEditorOptions } from './use-comark-editor'
-import type { ComarkReactComponentExports } from './define-component'
+} from "comark-tiptap";
+import { useComarkEditor, type UseComarkEditorOptions } from "./use-comark-editor";
+import type { ComarkReactComponentExports } from "./define-component";
 
 export interface ComarkEditorProps {
   /** Pre-built editor for full lifecycle control. Skips the internal one. */
-  editor?: Editor
+  editor?: Editor;
   /** Controlled content, in `contentType` flavor. Pair with `onChange`. */
-  value?: ContentValue
+  value?: ContentValue;
   /** Non-reactive mount-only seed. `value` wins when both are set. */
-  content?: ContentValue
+  content?: ContentValue;
   /**
    * Flavor for both input parsing and `onChange` output.
    *
    * @default 'markdown'
    */
-  contentType?: ContentType
+  contentType?: ContentType;
   /** Fired with the editor's content in `contentType` flavor on every edit. */
-  onChange?: (value: ContentValue) => void
-  onReady?: (editor: Editor) => void
-  onUpdate?: (editor: Editor) => void
+  onChange?: (value: ContentValue) => void;
+  onReady?: (editor: Editor) => void;
+  onUpdate?: (editor: Editor) => void;
   /**
    * Observe async parse / render / AST-JSON failures the kit otherwise
    * swallows to `console.warn`.
    */
-  onError?: ComarkErrorHandler
-  components?: ReadonlyArray<ComarkReactComponentExports>
-  extensions?: ReadonlyArray<AnyExtension>
-  kitOptions?: Partial<ComarkKitOptions>
-  editorOptions?: UseComarkEditorOptions['editorOptions']
-  className?: string
+  onError?: ComarkErrorHandler;
+  components?: ReadonlyArray<ComarkReactComponentExports>;
+  extensions?: ReadonlyArray<AnyExtension>;
+  kitOptions?: Partial<ComarkKitOptions>;
+  editorOptions?: UseComarkEditorOptions["editorOptions"];
+  className?: string;
   /** Rendered above the content; a function receives the live editor. */
-  children?: ReactNode | ((editor: Editor) => ReactNode)
+  children?: ReactNode | ((editor: Editor) => ReactNode);
   /** Rendered while the editor is being created. */
-  fallback?: ReactNode
+  fallback?: ReactNode;
 }
 
 /**
@@ -67,16 +67,16 @@ export function ComarkEditor(props: ComarkEditorProps): ReactNode {
           data-comark-editor-content=""
         />
       </div>
-    )
+    );
   }
-  return <ManagedComarkEditor {...props} />
+  return <ManagedComarkEditor {...props} />;
 }
 
 function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
   const {
     value,
     content,
-    contentType = 'markdown',
+    contentType = "markdown",
     onChange,
     onReady,
     onUpdate,
@@ -88,47 +88,47 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     className,
     children,
     fallback,
-  } = props
+  } = props;
 
   /* JSON-shadow loop guard: dedupes the onChange echo. Every push (in or out)
      stamps the shadow, so the wave a value update triggers doesn't bounce back. */
-  const shadow = useRef<string | null>(null)
+  const shadow = useRef<string | null>(null);
 
   /* `content` wins as the explicit seed; else the controlled value's initial. */
-  const seedAtMount = content !== undefined ? content : value
+  const seedAtMount = content !== undefined ? content : value;
 
   const pushValueFromEditor = async (e: Editor): Promise<void> => {
-    if (contentType === 'markdown') {
+    if (contentType === "markdown") {
       try {
-        const md = await e.storage.comark.getMarkdown()
-        if (md === shadow.current) return
-        shadow.current = md
-        onChange?.(md)
+        const md = await e.storage.comark.getMarkdown();
+        if (md === shadow.current) return;
+        shadow.current = md;
+        onChange?.(md);
       } catch (err) {
         /* Keep the editor alive over a render error; surface it if observed. */
-        e.storage.comark.onError?.(err, { phase: 'render' })
+        e.storage.comark.onError?.(err, { phase: "render" });
       }
-      return
+      return;
     }
-    const out = readByFlavor(e, contentType)
-    const j = safeJson(out)
-    if (j === shadow.current) return
-    shadow.current = j
-    onChange?.(out as ContentValue)
-  }
+    const out = readByFlavor(e, contentType);
+    const j = safeJson(out);
+    if (j === shadow.current) return;
+    shadow.current = j;
+    onChange?.(out as ContentValue);
+  };
 
   const initShadow = async (e: Editor): Promise<void> => {
-    if (contentType === 'markdown') {
+    if (contentType === "markdown") {
       try {
-        shadow.current = await e.storage.comark.getMarkdown()
+        shadow.current = await e.storage.comark.getMarkdown();
       } catch (err) {
-        shadow.current = null
-        e.storage.comark.onError?.(err, { phase: 'render' })
+        shadow.current = null;
+        e.storage.comark.onError?.(err, { phase: "render" });
       }
-      return
+      return;
     }
-    shadow.current = safeJson(readByFlavor(e, contentType))
-  }
+    shadow.current = safeJson(readByFlavor(e, contentType));
+  };
 
   const internal = useComarkEditor({
     content: seedAtMount,
@@ -142,45 +142,45 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
       /* Async markdown seed isn't applied yet — seed the shadow so the first
          update syncs. Sync cross-flavor seed (`content` set) pushes now. */
       if (value !== undefined) {
-        const seedIsAsyncMarkdown = contentType === 'markdown' && typeof seedAtMount === 'string'
-        if (seedIsAsyncMarkdown) void initShadow(e)
-        else if (content !== undefined) void pushValueFromEditor(e)
-        else void initShadow(e)
+        const seedIsAsyncMarkdown = contentType === "markdown" && typeof seedAtMount === "string";
+        if (seedIsAsyncMarkdown) void initShadow(e);
+        else if (content !== undefined) void pushValueFromEditor(e);
+        else void initShadow(e);
       }
-      onReady?.(e)
+      onReady?.(e);
     },
     onUpdate: (e) => {
-      onUpdate?.(e)
-      if (value !== undefined) void pushValueFromEditor(e)
+      onUpdate?.(e);
+      if (value !== undefined) void pushValueFromEditor(e);
     },
-  })
+  });
 
-  const editor = internal.editor
+  const editor = internal.editor;
 
   /* Outside-in sync: push a changed controlled value into the editor unless
      the shadow says we already have it. */
   useEffect(() => {
-    if (value === undefined || !editor) return
-    if (contentType === 'markdown' && typeof value === 'string') {
-      if (value === shadow.current) return
-      shadow.current = value
+    if (value === undefined || !editor) return;
+    if (contentType === "markdown" && typeof value === "string") {
+      if (value === shadow.current) return;
+      shadow.current = value;
     } else {
-      const j = safeJson(value)
-      if (j === shadow.current) return
-      shadow.current = j
+      const j = safeJson(value);
+      if (j === shadow.current) return;
+      shadow.current = j;
     }
-    void internal.setContent(value, { contentType })
-  }, [value, editor, contentType, internal])
+    void internal.setContent(value, { contentType });
+  }, [value, editor, contentType, internal]);
 
-  if (!editor) return <div data-comark-editor="">{fallback ?? null}</div>
+  if (!editor) return <div data-comark-editor="">{fallback ?? null}</div>;
   return (
     <div data-comark-editor="">
       {renderChildren(children, editor)}
       <EditorContent editor={editor} className={className} data-comark-editor-content="" />
     </div>
-  )
+  );
 }
 
-function renderChildren(children: ComarkEditorProps['children'], editor: Editor): ReactNode {
-  return typeof children === 'function' ? children(editor) : (children ?? null)
+function renderChildren(children: ComarkEditorProps["children"], editor: Editor): ReactNode {
+  return typeof children === "function" ? children(editor) : (children ?? null);
 }

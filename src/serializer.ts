@@ -4,11 +4,11 @@ import {
   type Content,
   type Editor,
   type JSONContent,
-} from '@tiptap/core'
-import { parse } from 'comark'
-import { renderMarkdown } from 'comark/render'
-import { isComarkTreeLike } from './content'
-import { injectComarkStyles } from './style'
+} from "@tiptap/core";
+import { parse } from "comark";
+import { renderMarkdown } from "comark/render";
+import { isComarkTreeLike } from "./content";
+import { injectComarkStyles } from "./style";
 import type {
   ComarkComment,
   ComarkElement,
@@ -18,7 +18,7 @@ import type {
   MarkSpec,
   NodeSpec,
   PMMark,
-} from './types'
+} from "./types";
 
 /* The bundled runtime exposes the core command factories only on the `commands`
    namespace (despite the .d.ts re-exporting them at top level), so destructure
@@ -27,231 +27,231 @@ const {
   setContent: baseSetContent,
   insertContent: baseInsertContent,
   insertContentAt: baseInsertContentAt,
-} = tiptapCommands
+} = tiptapCommands;
 
 // #region pure dispatcher
 
 export interface SerializerSpecs {
-  nodes: readonly NodeSpec[]
-  marks: readonly MarkSpec[]
+  nodes: readonly NodeSpec[];
+  marks: readonly MarkSpec[];
 }
 
-const TEXT_PM_NAME = 'text'
-const DOC_PM_NAME = 'doc'
+const TEXT_PM_NAME = "text";
+const DOC_PM_NAME = "doc";
 
-const isComarkText = (n: ComarkNode): n is string => typeof n === 'string'
-const isComarkComment = (n: ComarkNode): n is ComarkComment => Array.isArray(n) && n[0] === null
+const isComarkText = (n: ComarkNode): n is string => typeof n === "string";
+const isComarkComment = (n: ComarkNode): n is ComarkComment => Array.isArray(n) && n[0] === null;
 const isComarkElement = (n: ComarkNode): n is ComarkElement =>
-  Array.isArray(n) && typeof n[0] === 'string'
+  Array.isArray(n) && typeof n[0] === "string";
 
 /**
  * Build the recursion helpers from a flat list of node / mark specs.
  * Pure function — call once and reuse the helpers.
  */
 export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
-  const nodeByPmName = new Map<string, NodeSpec>()
-  const nodeByTag = new Map<string, NodeSpec[]>()
-  const markByPmName = new Map<string, MarkSpec>()
-  const markByTag = new Map<string, MarkSpec[]>()
+  const nodeByPmName = new Map<string, NodeSpec>();
+  const nodeByTag = new Map<string, NodeSpec[]>();
+  const markByPmName = new Map<string, MarkSpec>();
+  const markByTag = new Map<string, MarkSpec[]>();
 
   for (const spec of specs.nodes) {
-    nodeByPmName.set(spec.pmName, spec)
+    nodeByPmName.set(spec.pmName, spec);
     for (const tag of spec.tags) {
-      const list = nodeByTag.get(tag) ?? []
-      list.push(spec)
-      nodeByTag.set(tag, list)
+      const list = nodeByTag.get(tag) ?? [];
+      list.push(spec);
+      nodeByTag.set(tag, list);
     }
   }
   for (const spec of specs.marks) {
-    markByPmName.set(spec.pmName, spec)
+    markByPmName.set(spec.pmName, spec);
     for (const tag of spec.tags) {
-      const list = markByTag.get(tag) ?? []
-      list.push(spec)
-      markByTag.set(tag, list)
+      const list = markByTag.get(tag) ?? [];
+      list.push(spec);
+      markByTag.set(tag, list);
     }
   }
 
   function pickNodeForTag(el: ComarkElement): NodeSpec | undefined {
-    const candidates = nodeByTag.get(el[0])
-    if (!candidates) return undefined
-    if (candidates.length === 1) return candidates[0]
-    return candidates.find((c) => !c.matches || c.matches(el)) ?? candidates[0]
+    const candidates = nodeByTag.get(el[0]);
+    if (!candidates) return undefined;
+    if (candidates.length === 1) return candidates[0];
+    return candidates.find((c) => !c.matches || c.matches(el)) ?? candidates[0];
   }
 
   function pickMarkForTag(el: ComarkElement): MarkSpec | undefined {
-    const candidates = markByTag.get(el[0])
-    if (!candidates) return undefined
-    return candidates[0]
+    const candidates = markByTag.get(el[0]);
+    if (!candidates) return undefined;
+    return candidates[0];
   }
 
   /* True for marks (always inline) and for node specs that declared
      context: 'inline' (hardBreak, image, inline-kind components). */
   function isInlineComarkElement(el: ComarkElement): boolean {
-    if (pickMarkForTag(el)) return true
-    const node = pickNodeForTag(el)
-    return node?.context === 'inline'
+    if (pickMarkForTag(el)) return true;
+    const node = pickNodeForTag(el);
+    return node?.context === "inline";
   }
 
   // PM JSON → Comark
 
   function serializeBlocks(content: JSONContent[] | undefined): ComarkNode[] {
-    if (!content) return []
-    const out: ComarkNode[] = []
+    if (!content) return [];
+    const out: ComarkNode[] = [];
     for (const child of content) {
-      if (!child.type) continue
-      const spec = nodeByPmName.get(child.type)
-      if (!spec) continue
-      const result = spec.toComark(child, helpers)
-      if (result !== null && result !== undefined) out.push(result)
+      if (!child.type) continue;
+      const spec = nodeByPmName.get(child.type);
+      if (!spec) continue;
+      const result = spec.toComark(child, helpers);
+      if (result !== null && result !== undefined) out.push(result);
     }
-    return out
+    return out;
   }
 
   function serializeInlines(content: JSONContent[] | undefined): ComarkNode[] {
-    if (!content) return []
-    const out: ComarkNode[] = []
+    if (!content) return [];
+    const out: ComarkNode[] = [];
     for (const child of content) {
-      if (!child.type) continue
+      if (!child.type) continue;
 
       /* PM stores marks outer-first (index 0 = outermost), so wrap from the
          last mark inward — reverse iteration nests them correctly. */
       if (child.type === TEXT_PM_NAME) {
-        const text = child.text ?? ''
-        if (text.length === 0) continue
-        const marks = (child.marks ?? []) as PMMark[]
-        let inner: ComarkNode = text
+        const text = child.text ?? "";
+        if (text.length === 0) continue;
+        const marks = (child.marks ?? []) as PMMark[];
+        let inner: ComarkNode = text;
         for (let i = marks.length - 1; i >= 0; i--) {
-          const m = marks[i]
-          if (!m) continue
-          const spec = markByPmName.get(m.type)
-          if (!spec) continue
-          inner = spec.toComark(m, inner)
+          const m = marks[i];
+          if (!m) continue;
+          const spec = markByPmName.get(m.type);
+          if (!spec) continue;
+          inner = spec.toComark(m, inner);
         }
-        out.push(inner)
-        continue
+        out.push(inner);
+        continue;
       }
 
       /* Inline atom (image, hardBreak, inline component): the spec emits its own
          element; marks wrap it outer-first, same as text runs. */
-      const spec = nodeByPmName.get(child.type)
-      if (!spec) continue
-      const result = spec.toComark(child, helpers)
-      if (result === null || result === undefined) continue
-      let wrapped: ComarkNode = result
-      const atomMarks = (child.marks ?? []) as PMMark[]
+      const spec = nodeByPmName.get(child.type);
+      if (!spec) continue;
+      const result = spec.toComark(child, helpers);
+      if (result === null || result === undefined) continue;
+      let wrapped: ComarkNode = result;
+      const atomMarks = (child.marks ?? []) as PMMark[];
       for (let i = atomMarks.length - 1; i >= 0; i--) {
-        const m = atomMarks[i]
-        if (!m) continue
-        const ms = markByPmName.get(m.type)
-        if (!ms) continue
-        wrapped = ms.toComark(m, wrapped)
+        const m = atomMarks[i];
+        if (!m) continue;
+        const ms = markByPmName.get(m.type);
+        if (!ms) continue;
+        wrapped = ms.toComark(m, wrapped);
       }
-      out.push(wrapped)
+      out.push(wrapped);
     }
-    return out
+    return out;
   }
 
   // Comark → PM JSON
 
   function parseBlocks(children: ComarkNode[]): JSONContent[] {
-    const out: JSONContent[] = []
-    let inlineBuf: ComarkNode[] = []
+    const out: JSONContent[] = [];
+    let inlineBuf: ComarkNode[] = [];
 
     const flushInlines = () => {
-      if (inlineBuf.length === 0) return
-      const inlines = parseInlines(inlineBuf)
+      if (inlineBuf.length === 0) return;
+      const inlines = parseInlines(inlineBuf);
       if (inlines.length > 0) {
-        out.push({ type: 'paragraph', content: inlines })
+        out.push({ type: "paragraph", content: inlines });
       }
-      inlineBuf = []
-    }
+      inlineBuf = [];
+    };
 
     for (const child of children) {
       if (isComarkText(child)) {
         /* Comark's autoUnwrap drops the paragraph wrapper around a lone
            paragraph, so bucket consecutive inlines into one paragraph. */
-        if (child.length === 0) continue
-        inlineBuf.push(child)
-        continue
+        if (child.length === 0) continue;
+        inlineBuf.push(child);
+        continue;
       }
       if (isComarkComment(child)) {
-        flushInlines()
-        const spec = nodeByPmName.get('comarkComment')
+        flushInlines();
+        const spec = nodeByPmName.get("comarkComment");
         if (spec) {
-          const result = spec.fromComark(child as unknown as ComarkElement, helpers)
-          if (result) out.push(result)
+          const result = spec.fromComark(child as unknown as ComarkElement, helpers);
+          if (result) out.push(result);
         }
-        continue
+        continue;
       }
-      if (!isComarkElement(child)) continue
+      if (!isComarkElement(child)) continue;
 
       // Inline element (mark or inline-context node)? Buffer it.
       if (isInlineComarkElement(child)) {
-        inlineBuf.push(child)
-        continue
+        inlineBuf.push(child);
+        continue;
       }
 
       // Block element — flush whatever inlines we accumulated, then emit.
-      flushInlines()
-      const spec = pickNodeForTag(child)
+      flushInlines();
+      const spec = pickNodeForTag(child);
       if (!spec) {
         /* Unknown / forward-compat block tag: splat its children so their
            content survives, instead of dropping the whole subtree. Mirrors the
            inline fallback in parseInlines. */
-        out.push(...parseBlocks(child.slice(2) as ComarkNode[]))
-        continue
+        out.push(...parseBlocks(child.slice(2) as ComarkNode[]));
+        continue;
       }
-      const result = spec.fromComark(child, helpers)
-      if (result) out.push(result)
+      const result = spec.fromComark(child, helpers);
+      if (result) out.push(result);
     }
 
-    flushInlines()
-    return out
+    flushInlines();
+    return out;
   }
 
   function parseInlines(children: ComarkNode[]): JSONContent[] {
-    const out: JSONContent[] = []
+    const out: JSONContent[] = [];
     for (const child of children) {
       if (isComarkText(child)) {
-        if (child.length === 0) continue
-        out.push({ type: 'text', text: child })
-        continue
+        if (child.length === 0) continue;
+        out.push({ type: "text", text: child });
+        continue;
       }
       if (isComarkComment(child)) {
         // Comments inside inline runs are unusual; drop them silently.
-        continue
+        continue;
       }
-      if (!isComarkElement(child)) continue
+      if (!isComarkElement(child)) continue;
 
       // Mark? Recurse into its children with the mark layered on.
-      const markSpec = pickMarkForTag(child)
+      const markSpec = pickMarkForTag(child);
       if (markSpec) {
-        const mark = markSpec.fromComark(child)
-        if (!mark) continue
-        const innerChildren = child.slice(2) as ComarkNode[]
-        const innerJson = parseInlines(innerChildren)
+        const mark = markSpec.fromComark(child);
+        if (!mark) continue;
+        const innerChildren = child.slice(2) as ComarkNode[];
+        const innerJson = parseInlines(innerChildren);
         for (const j of innerJson) {
           /* Prepend: this mark is the outermost seen so far (recursion unwinds
              inside-out), keeping PM's outer-first order. */
-          const existing = (j.marks ?? []) as PMMark[]
-          out.push({ ...j, marks: [mark, ...existing] })
+          const existing = (j.marks ?? []) as PMMark[];
+          out.push({ ...j, marks: [mark, ...existing] });
         }
-        continue
+        continue;
       }
 
       // Inline node (img, hardBreak, custom inline component)?
-      const nodeSpec = pickNodeForTag(child)
+      const nodeSpec = pickNodeForTag(child);
       if (!nodeSpec) {
         /* Unknown tag: splat children as a lossy fallback so text still shows.
            Only fires for hand-authored AST with unrecognized tags. */
-        const innerChildren = child.slice(2) as ComarkNode[]
-        out.push(...parseInlines(innerChildren))
-        continue
+        const innerChildren = child.slice(2) as ComarkNode[];
+        out.push(...parseInlines(innerChildren));
+        continue;
       }
-      const json = nodeSpec.fromComark(child, helpers)
-      if (json) out.push(json)
+      const json = nodeSpec.fromComark(child, helpers);
+      if (json) out.push(json);
     }
-    return out
+    return out;
   }
 
   const helpers: ComarkHelpers = {
@@ -261,8 +261,8 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     parseInlines,
     nodeSpecs: specs.nodes,
     markSpecs: specs.marks,
-  }
-  return helpers
+  };
+  return helpers;
 }
 
 // #region doc-level convenience
@@ -279,27 +279,27 @@ export function pmDocToComark(
   carry: { frontmatter?: Record<string, unknown>; meta?: Record<string, unknown> } = {},
 ): ComarkTree {
   if (doc.type !== DOC_PM_NAME) {
-    throw new Error(`Expected PM doc node, got "${doc.type}"`)
+    throw new Error(`Expected PM doc node, got "${doc.type}"`);
   }
   return {
     nodes: helpers.serializeBlocks(doc.content),
     frontmatter: { ...carry.frontmatter },
     meta: { ...carry.meta },
-  }
+  };
 }
 
 /** Convert a Comark tree to a PM doc JSON using the given helpers. */
 export function comarkToPmDoc(tree: ComarkTree, helpers: ComarkHelpers): JSONContent {
-  const content = helpers.parseBlocks(tree.nodes)
+  const content = helpers.parseBlocks(tree.nodes);
   return {
     type: DOC_PM_NAME,
-    content: content.length > 0 ? content : [{ type: 'paragraph' }],
-  }
+    content: content.length > 0 ? content : [{ type: "paragraph" }],
+  };
 }
 
 // #region Tiptap extension — wires the orchestrator to a live editor
 
-declare module '@tiptap/core' {
+declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     comark: {
       /**
@@ -317,22 +317,22 @@ declare module '@tiptap/core' {
        * editor.commands.setComarkAst(jsonString, { emitUpdate: false })
        * ```
        */
-      setComarkAst: (value: ComarkTree | string, options?: SetComarkContentOptions) => ReturnType
+      setComarkAst: (value: ComarkTree | string, options?: SetComarkContentOptions) => ReturnType;
       /**
        * Replace editor content from a markdown string (parsed via comark).
        *
        * @param markdown - Markdown source.
        * @param options - Same semantics as {@link setComarkAst}.
        */
-      setComarkMarkdown: (markdown: string, options?: SetComarkContentOptions) => ReturnType
-    }
+      setComarkMarkdown: (markdown: string, options?: SetComarkContentOptions) => ReturnType;
+    };
   }
   interface Storage {
-    comark: ComarkSerializerStorage
+    comark: ComarkSerializerStorage;
   }
   interface InsertContentOptions {
     /** Flatten a markdown string's blocks so it inserts as an inline run at the cursor, not a new paragraph. */
-    inline?: boolean
+    inline?: boolean;
     /**
      * How to interpret a `string` input; ignored for objects (auto-detected:
      * `{ nodes: [...] }` → Comark AST, everything else → PM JSON / Fragment / node).
@@ -343,12 +343,12 @@ declare module '@tiptap/core' {
      * - `'html'` — Tiptap's stock HTML pipeline, sync.
      * - `'json'` — `JSON.parse`, then route by shape.
      */
-    contentType?: 'markdown' | 'html' | 'json'
+    contentType?: "markdown" | "html" | "json";
   }
   /** Same options as {@link InsertContentOptions}, for `insertContentAt`. */
   interface InsertContentAtOptions {
-    inline?: boolean
-    contentType?: 'markdown' | 'html' | 'json'
+    inline?: boolean;
+    contentType?: "markdown" | "html" | "json";
   }
   interface SetContentOptions {
     /**
@@ -356,7 +356,7 @@ declare module '@tiptap/core' {
      *
      * @default 'markdown'
      */
-    contentType?: 'markdown' | 'html' | 'json'
+    contentType?: "markdown" | "html" | "json";
   }
   interface EditorOptions {
     /**
@@ -366,7 +366,7 @@ declare module '@tiptap/core' {
      *
      * @default 'markdown'
      */
-    contentType?: 'markdown' | 'html' | 'json'
+    contentType?: "markdown" | "html" | "json";
   }
 }
 
@@ -381,26 +381,26 @@ export interface SetComarkContentOptions {
    *
    * @default true
    */
-  emitUpdate?: boolean
+  emitUpdate?: boolean;
 
   /**
    * Throw on invalid content (relative to the active schema) instead of
    * silently coercing it. Mirrors Tiptap's option of the same name; when
    * omitted, the editor's `enableContentCheck` setting decides.
    */
-  errorOnInvalidContent?: boolean
+  errorOnInvalidContent?: boolean;
 }
 
 /** Which operation raised an error handed to a {@link ComarkErrorHandler}. */
 export interface ComarkErrorContext {
   phase:
-    | 'construct'
-    | 'setContent'
-    | 'setComarkAst'
-    | 'setComarkMarkdown'
-    | 'insertContent'
-    | 'insertContentAt'
-    | 'render'
+    | "construct"
+    | "setContent"
+    | "setComarkAst"
+    | "setComarkMarkdown"
+    | "insertContent"
+    | "insertContentAt"
+    | "render";
 }
 
 /**
@@ -413,28 +413,28 @@ export interface ComarkErrorContext {
  * ComarkKit.configure({ serializer: { onError: (e, { phase }) => report(phase, e) } })
  * ```
  */
-export type ComarkErrorHandler = (error: unknown, context: ComarkErrorContext) => void
+export type ComarkErrorHandler = (error: unknown, context: ComarkErrorContext) => void;
 
 export interface ComarkSerializerStorage {
   /** The dispatch helpers built from the registered specs. */
-  helpers: ComarkHelpers
+  helpers: ComarkHelpers;
   /**
    * Consumer error handler forwarded from options (`undefined` = default
    * `console.warn`). Bindings read it to report their own render failures.
    */
-  onError?: ComarkErrorHandler
+  onError?: ComarkErrorHandler;
   /** External frontmatter / meta the editor doesn't own. */
-  frontmatter: Record<string, unknown>
-  meta: Record<string, unknown>
+  frontmatter: Record<string, unknown>;
+  meta: Record<string, unknown>;
   /**
    * Editor instance, populated on `onBeforeCreate`. Internal — use
    * `getAst` / `getMarkdown` instead of reaching in directly.
    */
-  editor: Editor | null
+  editor: Editor | null;
   /** Read the editor's current content as a Comark AST. */
-  getAst(): ComarkTree
+  getAst(): ComarkTree;
   /** Read the editor's current content as Comark markdown. */
-  getMarkdown(): Promise<string>
+  getMarkdown(): Promise<string>;
 }
 
 export interface ComarkSerializerOptions {
@@ -442,7 +442,7 @@ export interface ComarkSerializerOptions {
    * Serialization specs the orchestrator dispatches on. `ComarkKit` supplies
    * the stock specs plus any user components; direct consumers can pass a subset.
    */
-  specs: SerializerSpecs
+  specs: SerializerSpecs;
 
   /**
    * Auto-inject the kit's operational stylesheet (`comarkStyle`) into
@@ -454,7 +454,7 @@ export interface ComarkSerializerOptions {
    *
    * @default true
    */
-  injectStyles: boolean
+  injectStyles: boolean;
 
   /**
    * CSP nonce applied to the auto-injected style tag. Mirrors Tiptap
@@ -462,7 +462,7 @@ export interface ComarkSerializerOptions {
    *
    * @default undefined
    */
-  injectNonce?: string
+  injectNonce?: string;
 
   /**
    * Observe async parse / render / AST-JSON failures instead of the default
@@ -470,10 +470,10 @@ export interface ComarkSerializerOptions {
    *
    * @default undefined
    */
-  onError?: ComarkErrorHandler
+  onError?: ComarkErrorHandler;
 }
 
-const EMPTY_HELPERS: ComarkHelpers = createSerializer({ nodes: [], marks: [] })
+const EMPTY_HELPERS: ComarkHelpers = createSerializer({ nodes: [], marks: [] });
 
 /** Route a swallowed failure to the consumer handler, or `console.warn` by default. */
 function reportError(
@@ -482,14 +482,14 @@ function reportError(
   context: ComarkErrorContext,
 ): void {
   if (onError) {
-    onError(error, context)
-  } else if (typeof console !== 'undefined') {
-    console.warn(`[comark] ${context.phase} failed:`, error)
+    onError(error, context);
+  } else if (typeof console !== "undefined") {
+    console.warn(`[comark] ${context.phase} failed:`, error);
   }
 }
 
 export const ComarkSerializer = Extension.create<ComarkSerializerOptions, ComarkSerializerStorage>({
-  name: 'comark',
+  name: "comark",
 
   addOptions() {
     return {
@@ -497,7 +497,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       injectStyles: true,
       injectNonce: undefined,
       onError: undefined,
-    }
+    };
   },
 
   addStorage(): ComarkSerializerStorage {
@@ -508,25 +508,25 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       editor: null,
       onError: undefined,
       getAst(this: ComarkSerializerStorage): ComarkTree {
-        if (!this.editor) throw new Error('[comark] editor not yet attached')
+        if (!this.editor) throw new Error("[comark] editor not yet attached");
         return pmDocToComark(this.editor.getJSON() as JSONContent, this.helpers, {
           frontmatter: this.frontmatter,
           meta: this.meta,
-        })
+        });
       },
       async getMarkdown(this: ComarkSerializerStorage): Promise<string> {
-        const tree = this.getAst()
-        return await renderMarkdown(tree)
+        const tree = this.getAst();
+        return await renderMarkdown(tree);
       },
-    }
+    };
   },
 
   onBeforeCreate() {
     /* Stash the editor here, not in onCreate: a host's onCreate may call
        setComarkAst, which dispatches before our own onCreate would run. */
-    this.storage.editor = this.editor
-    this.storage.helpers = createSerializer(this.options.specs)
-    this.storage.onError = this.options.onError
+    this.storage.editor = this.editor;
+    this.storage.helpers = createSerializer(this.options.specs);
+    this.storage.onError = this.options.onError;
 
     /* Tiptap's constructor calls createDocument(options.content) directly, so the
        setContent override below never fires for the seed — hijack options.content
@@ -537,40 +537,40 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
          - string + contentType 'html': Tiptap's stock HTML path.
          - Comark-tree object: apply via setComarkAst (Tiptap can't build from one).
          - else (PM JSON, Fragment, ProseMirrorNode): leave content for Tiptap. */
-    const opts = this.editor.options
-    if (typeof opts.content === 'string' && opts.content !== '') {
-      if (opts.contentType === 'html') {
+    const opts = this.editor.options;
+    if (typeof opts.content === "string" && opts.content !== "") {
+      if (opts.contentType === "html") {
         // Pass-through to Tiptap's stock HTML pipeline.
-      } else if (opts.contentType === 'json') {
+      } else if (opts.contentType === "json") {
         /* Parse PM JSON ourselves: the lib doesn't ship @tiptap/markdown's
            MarkdownManager, which is what lets stock Tiptap accept JSON strings. */
-        const parsed = safeJsonParse(opts.content, this.options.onError, 'construct')
-        opts.content = parsed === undefined ? '' : (parsed as typeof opts.content)
+        const parsed = safeJsonParse(opts.content, this.options.onError, "construct");
+        opts.content = parsed === undefined ? "" : (parsed as typeof opts.content);
       } else {
-        const markdown = opts.content
-        opts.content = ''
+        const markdown = opts.content;
+        opts.content = "";
         parse(markdown)
           .then((tree) => {
-            if (this.editor.isDestroyed) return
-            this.editor.commands.setComarkAst(tree, { emitUpdate: true })
+            if (this.editor.isDestroyed) return;
+            this.editor.commands.setComarkAst(tree, { emitUpdate: true });
           })
           .catch((err) => {
-            reportError(this.options.onError, err, { phase: 'construct' })
-          })
+            reportError(this.options.onError, err, { phase: "construct" });
+          });
       }
     } else if (isComarkTreeLike(opts.content)) {
-      const tree = opts.content
-      opts.content = null
+      const tree = opts.content;
+      opts.content = null;
       queueMicrotask(() => {
-        if (this.editor.isDestroyed) return
-        this.editor.commands.setComarkAst(tree, { emitUpdate: false })
-      })
+        if (this.editor.isDestroyed) return;
+        this.editor.commands.setComarkAst(tree, { emitUpdate: false });
+      });
     }
 
     /* Inject at construction, like Tiptap core. injectComarkStyles is a no-op
        when document is undefined, so this is safe in SSR / Node test runners. */
     if (this.options.injectStyles) {
-      injectComarkStyles(this.options.injectNonce)
+      injectComarkStyles(this.options.injectNonce);
     }
   },
 
@@ -580,45 +580,45 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         (value: ComarkTree | string, options?: SetComarkContentOptions) =>
         ({ commands }) => {
           /* String form: JSON.parse + AST shape-check; bad shapes return false. */
-          let tree: ComarkTree
-          if (typeof value === 'string') {
-            const parsed = safeJsonParse(value, this.options.onError, 'setComarkAst')
+          let tree: ComarkTree;
+          if (typeof value === "string") {
+            const parsed = safeJsonParse(value, this.options.onError, "setComarkAst");
             if (parsed === undefined || !isComarkTreeLike(parsed)) {
               /* Bad JSON is already reported by safeJsonParse; only the
                  valid-JSON-but-wrong-shape case needs a report here. */
               if (parsed !== undefined) {
                 reportError(
                   this.options.onError,
-                  new Error('setComarkAst: input is not a Comark AST (missing `nodes` array)'),
-                  { phase: 'setComarkAst' },
-                )
+                  new Error("setComarkAst: input is not a Comark AST (missing `nodes` array)"),
+                  { phase: "setComarkAst" },
+                );
               }
-              return false
+              return false;
             }
-            tree = parsed
+            tree = parsed;
           } else {
-            tree = value
+            tree = value;
           }
-          this.storage.frontmatter = { ...tree.frontmatter }
-          this.storage.meta = { ...tree.meta }
-          const doc = comarkToPmDoc(tree, this.storage.helpers)
+          this.storage.frontmatter = { ...tree.frontmatter };
+          this.storage.meta = { ...tree.meta };
+          const doc = comarkToPmDoc(tree, this.storage.helpers);
           return commands.setContent(doc, {
             emitUpdate: options?.emitUpdate ?? true,
             errorOnInvalidContent: options?.errorOnInvalidContent,
-          })
+          });
         },
       setComarkMarkdown:
         (markdown: string, options?: SetComarkContentOptions) =>
         ({ editor }) => {
           parse(markdown)
             .then((tree) => {
-              if (editor.isDestroyed) return
-              editor.commands.setComarkAst(tree, options)
+              if (editor.isDestroyed) return;
+              editor.commands.setComarkAst(tree, options);
             })
             .catch((err) => {
-              reportError(this.options.onError, err, { phase: 'setComarkMarkdown' })
-            })
-          return true
+              reportError(this.options.onError, err, { phase: "setComarkMarkdown" });
+            });
+          return true;
         },
 
       /* Overrides for Tiptap's core content commands: strings default to markdown;
@@ -633,100 +633,100 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
            invoking another command from inside a (props) => handler dispatches a
            fresh transaction, which ProseMirror rejects as mismatched. */
         if (isComarkTreeLike(content)) {
-          this.storage.frontmatter = { ...content.frontmatter }
-          this.storage.meta = { ...content.meta }
-          const doc = comarkToPmDoc(content, this.storage.helpers)
-          return baseSetContent(doc as unknown as Content, options)(props)
+          this.storage.frontmatter = { ...content.frontmatter };
+          this.storage.meta = { ...content.meta };
+          const doc = comarkToPmDoc(content, this.storage.helpers);
+          return baseSetContent(doc as unknown as Content, options)(props);
         }
-        if (typeof content !== 'string' || content === '' || options?.contentType === 'html') {
-          return baseSetContent(content as Content, options)(props)
+        if (typeof content !== "string" || content === "" || options?.contentType === "html") {
+          return baseSetContent(content as Content, options)(props);
         }
-        if (options?.contentType === 'json') {
+        if (options?.contentType === "json") {
           /* Strict PM JSON; AST strings belong on setComarkAst, no shape-sniff here. */
-          const parsed = safeJsonParse(content, this.options.onError, 'setContent')
-          if (parsed === undefined) return false
-          return baseSetContent(parsed as Content, options)(props)
+          const parsed = safeJsonParse(content, this.options.onError, "setContent");
+          if (parsed === undefined) return false;
+          return baseSetContent(parsed as Content, options)(props);
         }
         parse(content)
           .then((tree) => {
-            if (props.editor.isDestroyed) return
+            if (props.editor.isDestroyed) return;
             /* Outer transaction has settled here, so a fresh command is safe. */
             props.editor.commands.setComarkAst(tree, {
               emitUpdate: options?.emitUpdate ?? true,
               errorOnInvalidContent: options?.errorOnInvalidContent,
-            })
+            });
           })
           .catch((err) => {
-            reportError(this.options.onError, err, { phase: 'setContent' })
-          })
-        return true
+            reportError(this.options.onError, err, { phase: "setContent" });
+          });
+        return true;
       },
 
       insertContent: (value, options) => (props) => {
         if (isComarkTreeLike(value)) {
-          const payload = comarkTreeToInsertPayload(value, this.storage.helpers, options?.inline)
-          return baseInsertContent(payload, options)(props)
+          const payload = comarkTreeToInsertPayload(value, this.storage.helpers, options?.inline);
+          return baseInsertContent(payload, options)(props);
         }
-        if (typeof value !== 'string' || value === '' || options?.contentType === 'html') {
-          return baseInsertContent(value as Content, options)(props)
+        if (typeof value !== "string" || value === "" || options?.contentType === "html") {
+          return baseInsertContent(value as Content, options)(props);
         }
-        if (options?.contentType === 'json') {
-          const parsed = safeJsonParse(value, this.options.onError, 'insertContent')
-          if (parsed === undefined) return false
-          return baseInsertContent(parsed as Content, options)(props)
+        if (options?.contentType === "json") {
+          const parsed = safeJsonParse(value, this.options.onError, "insertContent");
+          if (parsed === undefined) return false;
+          return baseInsertContent(parsed as Content, options)(props);
         }
         parse(value)
           .then((tree) => {
-            if (props.editor.isDestroyed) return
-            const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline)
-            props.editor.commands.insertContent(payload, options)
+            if (props.editor.isDestroyed) return;
+            const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline);
+            props.editor.commands.insertContent(payload, options);
           })
           .catch((err) => {
-            reportError(this.options.onError, err, { phase: 'insertContent' })
-          })
-        return true
+            reportError(this.options.onError, err, { phase: "insertContent" });
+          });
+        return true;
       },
 
       insertContentAt: (position, value, options) => (props) => {
         if (isComarkTreeLike(value)) {
-          const payload = comarkTreeToInsertPayload(value, this.storage.helpers, options?.inline)
-          return baseInsertContentAt(position, payload, options)(props)
+          const payload = comarkTreeToInsertPayload(value, this.storage.helpers, options?.inline);
+          return baseInsertContentAt(position, payload, options)(props);
         }
-        if (typeof value !== 'string' || value === '' || options?.contentType === 'html') {
-          return baseInsertContentAt(position, value as Content, options)(props)
+        if (typeof value !== "string" || value === "" || options?.contentType === "html") {
+          return baseInsertContentAt(position, value as Content, options)(props);
         }
-        if (options?.contentType === 'json') {
-          const parsed = safeJsonParse(value, this.options.onError, 'insertContentAt')
-          if (parsed === undefined) return false
-          return baseInsertContentAt(position, parsed as Content, options)(props)
+        if (options?.contentType === "json") {
+          const parsed = safeJsonParse(value, this.options.onError, "insertContentAt");
+          if (parsed === undefined) return false;
+          return baseInsertContentAt(position, parsed as Content, options)(props);
         }
         parse(value)
           .then((tree) => {
-            if (props.editor.isDestroyed) return
-            const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline)
-            props.editor.commands.insertContentAt(position, payload, options)
+            if (props.editor.isDestroyed) return;
+            const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline);
+            props.editor.commands.insertContentAt(position, payload, options);
           })
           .catch((err) => {
-            reportError(this.options.onError, err, { phase: 'insertContentAt' })
-          })
-        return true
+            reportError(this.options.onError, err, { phase: "insertContentAt" });
+          });
+        return true;
       },
-    }
+    };
   },
-})
+});
 
 // #region routing helpers (Comark AST detection + dispatch)
 
 function safeJsonParse(
   input: string,
   onError: ComarkErrorHandler | undefined,
-  phase: ComarkErrorContext['phase'],
+  phase: ComarkErrorContext["phase"],
 ): unknown {
   try {
-    return JSON.parse(input)
+    return JSON.parse(input);
   } catch (err) {
-    reportError(onError, err, { phase })
-    return undefined
+    reportError(onError, err, { phase });
+    return undefined;
   }
 }
 
@@ -738,21 +738,21 @@ function comarkTreeToInsertPayload(
   helpers: ComarkHelpers,
   inline?: boolean,
 ): Content {
-  const doc = comarkToPmDoc(tree, helpers)
-  return inline ? (extractInlines(doc) as Content) : ((doc.content ?? []) as Content)
+  const doc = comarkToPmDoc(tree, helpers);
+  return inline ? (extractInlines(doc) as Content) : ((doc.content ?? []) as Content);
 }
 
 /* Flatten a parsed PM doc to its inline children for an inline insert. Blocks are
    joined with a hardBreak between them so source paragraph boundaries aren't lost
    — 'a\n\nb' becomes a + hardBreak + b, not ab; a single paragraph just unwraps. */
 function extractInlines(doc: JSONContent): JSONContent[] {
-  const blocks = doc.content ?? []
-  const out: JSONContent[] = []
+  const blocks = doc.content ?? [];
+  const out: JSONContent[] = [];
   for (const block of blocks) {
-    const inner = block?.content ?? []
-    if (inner.length === 0) continue
-    if (out.length > 0) out.push({ type: 'hardBreak' })
-    out.push(...inner)
+    const inner = block?.content ?? [];
+    if (inner.length === 0) continue;
+    if (out.length > 0) out.push({ type: "hardBreak" });
+    out.push(...inner);
   }
-  return out
+  return out;
 }

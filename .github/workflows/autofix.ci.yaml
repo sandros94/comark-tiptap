@@ -16,4 +16,4 @@ jobs:
       - run: pnpm dev:prepare
       - run: pnpm fmt
       - uses: autofix-ci/action@635ffb0c9798bd160680f18fd73371e355b85f27
-        with: { commit-message: 'chore: apply automated updates' }
+        with: { commit-message: "chore: apply automated updates" }

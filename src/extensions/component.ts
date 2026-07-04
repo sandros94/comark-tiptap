@@ -1,13 +1,13 @@
-import { Node, mergeAttributes, type Node as TiptapNode } from '@tiptap/core'
-import { autoUnwrapBlocks } from '../utils/auto-unwrap'
-import { htmlAttrSpec } from '../utils/html-attrs'
+import { Node, mergeAttributes, type Node as TiptapNode } from "@tiptap/core";
+import { autoUnwrapBlocks } from "../utils/auto-unwrap";
+import { htmlAttrSpec } from "../utils/html-attrs";
 import type {
   ComarkElement,
   ComarkElementAttributes,
   ComarkHelpers,
   JSONContent,
   NodeSpec,
-} from '../types'
+} from "../types";
 
 /** Type coercion and serialization rule for a single component prop. */
 export interface ComarkComponentProp {
@@ -19,22 +19,22 @@ export interface ComarkComponentProp {
    *   - `boolean` — Comark `:` prefix; `"true"`/`"false"` → boolean.
    *   - `json`    — Comark `:` prefix; JSON-encoded for object/array values.
    */
-  type: 'string' | 'number' | 'boolean' | 'json'
+  type: "string" | "number" | "boolean" | "json";
   /** Applied when the prop is missing on parse. */
-  default?: unknown
+  default?: unknown;
 }
 
 /** Declarative description of a Comark component, consumed by {@link defineComarkComponent}. */
 export interface ComarkComponentDefinition<TNodeView = unknown> {
   /** Comark tag — `alert`, `badge`, `card`, etc. */
-  name: string
+  name: string;
   /** Block components (`::alert`) vs inline components (`:badge[…]`). */
-  kind: 'block' | 'inline'
+  kind: "block" | "inline";
   /**
    * Declared props with type info. Each becomes a flat native PM attr; the
    * round-trip follows Comark's `:`-prefix convention for non-strings.
    */
-  props?: Record<string, ComarkComponentProp>
+  props?: Record<string, ComarkComponentProp>;
   /**
    * Optional framework-specific NodeView (Vue SFC, React component, …). The
    * factory only forwards it onto the returned `definition`; it does not wire
@@ -43,17 +43,17 @@ export interface ComarkComponentDefinition<TNodeView = unknown> {
    * `extension.extend({ addNodeView: … })` themselves. Narrow the type via
    * `TNodeView`, e.g. `ComarkComponentDefinition<Component>` for Vue.
    */
-  nodeView?: TNodeView
+  nodeView?: TNodeView;
 }
 
 /** Return value of {@link defineComarkComponent}. */
 export interface ComarkComponentExports<TNodeView = unknown> {
   /** PM extension (Tiptap Node) for the component. */
-  extension: TiptapNode
+  extension: TiptapNode;
   /** Serialization spec — pass to `createSerializer`. */
-  spec: NodeSpec
+  spec: NodeSpec;
   /** The original definition, so framework wrappers can read it. */
-  definition: ComarkComponentDefinition<TNodeView>
+  definition: ComarkComponentDefinition<TNodeView>;
 }
 
 // #region prop coercion
@@ -63,58 +63,58 @@ export interface ComarkComponentExports<TNodeView = unknown> {
  * callers can filter them out and never emit `[object Object]`).
  */
 function safeToString(v: unknown): string | null {
-  if (typeof v === 'string') return v
-  if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') {
-    return String(v)
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
+    return String(v);
   }
-  return null
+  return null;
 }
 
-function decodePropValue(type: ComarkComponentProp['type'], raw: unknown): unknown {
-  if (raw === undefined || raw === null) return undefined
+function decodePropValue(type: ComarkComponentProp["type"], raw: unknown): unknown {
+  if (raw === undefined || raw === null) return undefined;
   switch (type) {
-    case 'string':
-      return safeToString(raw) ?? undefined
-    case 'number': {
-      const s = safeToString(raw)
-      if (s === null) return undefined
-      const n = Number(s)
-      return Number.isFinite(n) ? n : undefined
+    case "string":
+      return safeToString(raw) ?? undefined;
+    case "number": {
+      const s = safeToString(raw);
+      if (s === null) return undefined;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : undefined;
     }
-    case 'boolean':
-      if (typeof raw === 'boolean') return raw
-      if (raw === 'true') return true
-      if (raw === 'false') return false
-      return undefined
-    case 'json':
-      if (typeof raw === 'object') return raw
-      if (typeof raw !== 'string') return undefined
+    case "boolean":
+      if (typeof raw === "boolean") return raw;
+      if (raw === "true") return true;
+      if (raw === "false") return false;
+      return undefined;
+    case "json":
+      if (typeof raw === "object") return raw;
+      if (typeof raw !== "string") return undefined;
       try {
-        return JSON.parse(raw)
+        return JSON.parse(raw);
       } catch {
-        return undefined
+        return undefined;
       }
   }
 }
 
 function encodePropValue(
-  type: ComarkComponentProp['type'],
+  type: ComarkComponentProp["type"],
   value: unknown,
 ): { key: string; raw: string } | null {
-  if (value === undefined || value === null) return null
+  if (value === undefined || value === null) return null;
   switch (type) {
-    case 'string': {
-      const s = safeToString(value)
-      return s === null ? null : { key: '', raw: s }
+    case "string": {
+      const s = safeToString(value);
+      return s === null ? null : { key: "", raw: s };
     }
-    case 'number': {
-      const s = safeToString(value)
-      return s === null ? null : { key: ':', raw: s }
+    case "number": {
+      const s = safeToString(value);
+      return s === null ? null : { key: ":", raw: s };
     }
-    case 'boolean':
-      return { key: ':', raw: String(Boolean(value)) }
-    case 'json':
-      return { key: ':', raw: JSON.stringify(value) }
+    case "boolean":
+      return { key: ":", raw: String(Boolean(value)) };
+    case "json":
+      return { key: ":", raw: JSON.stringify(value) };
   }
 }
 
@@ -126,40 +126,40 @@ function readPropsAndHtml(
   attrs: ComarkElementAttributes | undefined,
   declared: Record<string, ComarkComponentProp>,
 ): { props: Record<string, unknown>; htmlAttrs: Record<string, unknown> } {
-  const props: Record<string, unknown> = {}
-  const htmlAttrs: Record<string, unknown> = {}
+  const props: Record<string, unknown> = {};
+  const htmlAttrs: Record<string, unknown> = {};
 
   if (!attrs) {
     for (const [name, decl] of Object.entries(declared)) {
-      if (decl.default !== undefined) props[name] = decl.default
+      if (decl.default !== undefined) props[name] = decl.default;
     }
-    return { props, htmlAttrs }
+    return { props, htmlAttrs };
   }
 
-  const seen = new Set<string>()
+  const seen = new Set<string>();
   for (const [k, v] of Object.entries(attrs)) {
-    if (k === '$') continue
-    if (v === null || v === undefined) continue
-    const bare = k.startsWith(':') ? k.slice(1) : k
-    const decl = declared[bare]
+    if (k === "$") continue;
+    if (v === null || v === undefined) continue;
+    const bare = k.startsWith(":") ? k.slice(1) : k;
+    const decl = declared[bare];
     if (decl) {
-      const decoded = decodePropValue(decl.type, v)
+      const decoded = decodePropValue(decl.type, v);
       if (decoded !== undefined) {
-        props[bare] = decoded
-        seen.add(bare)
+        props[bare] = decoded;
+        seen.add(bare);
       }
     } else {
-      htmlAttrs[k] = v
+      htmlAttrs[k] = v;
     }
   }
 
   for (const [name, decl] of Object.entries(declared)) {
     if (!seen.has(name) && decl.default !== undefined) {
-      props[name] = decl.default
+      props[name] = decl.default;
     }
   }
 
-  return { props, htmlAttrs }
+  return { props, htmlAttrs };
 }
 
 function writePropsAndHtml(
@@ -167,27 +167,27 @@ function writePropsAndHtml(
   htmlAttrs: Record<string, unknown>,
   declared: Record<string, ComarkComponentProp>,
 ): ComarkElementAttributes {
-  const out: ComarkElementAttributes = {}
+  const out: ComarkElementAttributes = {};
 
   // Splat htmlAttrs first so semantic prop keys win on collision.
   for (const [k, v] of Object.entries(htmlAttrs)) {
-    if (v === null || v === undefined) continue
-    out[k] = v
+    if (v === null || v === undefined) continue;
+    out[k] = v;
   }
 
   for (const [name, value] of Object.entries(props)) {
-    const decl = declared[name]
+    const decl = declared[name];
     if (!decl) {
       // Stray prop without a declaration — pass through as a string-ish.
-      if (value !== null && value !== undefined) out[name] = value
-      continue
+      if (value !== null && value !== undefined) out[name] = value;
+      continue;
     }
-    const enc = encodePropValue(decl.type, value)
-    if (!enc) continue
-    out[`${enc.key}${name}`] = enc.raw
+    const enc = encodePropValue(decl.type, value);
+    if (!enc) continue;
+    out[`${enc.key}${name}`] = enc.raw;
   }
 
-  return out
+  return out;
 }
 
 // #region the factory
@@ -213,24 +213,24 @@ function writePropsAndHtml(
 export function defineComarkComponent<TNodeView = unknown>(
   def: ComarkComponentDefinition<TNodeView>,
 ): ComarkComponentExports<TNodeView> {
-  const declared = def.props ?? {}
-  const isInline = def.kind === 'inline'
+  const declared = def.props ?? {};
+  const isInline = def.kind === "inline";
 
   const spec: NodeSpec = {
     pmName: def.name,
     tags: [def.name],
-    context: isInline ? 'inline' : 'block',
+    context: isInline ? "inline" : "block",
 
     toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
-      const propsBag: Record<string, unknown> = {}
+      const propsBag: Record<string, unknown> = {};
       for (const name of Object.keys(declared)) {
-        if (node.attrs && name in node.attrs) propsBag[name] = node.attrs[name]
+        if (node.attrs && name in node.attrs) propsBag[name] = node.attrs[name];
       }
       const attrs = writePropsAndHtml(
         propsBag,
         (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
         declared,
-      )
+      );
       /*
        * Block components mirror Comark's autoUnwrap: a single attrless
        * paragraph child flattens to inlines. Inline components hold inline
@@ -238,29 +238,29 @@ export function defineComarkComponent<TNodeView = unknown>(
        */
       const children = isInline
         ? h.serializeInlines(node.content)
-        : autoUnwrapBlocks(node.content, h)
-      return [def.name, attrs, ...children]
+        : autoUnwrapBlocks(node.content, h);
+      return [def.name, attrs, ...children];
     },
 
     fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
-      const [, rawAttrs, ...children] = el
-      const { props, htmlAttrs } = readPropsAndHtml(rawAttrs, declared)
-      const attrs: Record<string, unknown> = { ...props }
-      if (Object.keys(htmlAttrs).length > 0) attrs.htmlAttrs = htmlAttrs
+      const [, rawAttrs, ...children] = el;
+      const { props, htmlAttrs } = readPropsAndHtml(rawAttrs, declared);
+      const attrs: Record<string, unknown> = { ...props };
+      if (Object.keys(htmlAttrs).length > 0) attrs.htmlAttrs = htmlAttrs;
 
-      const content = isInline ? h.parseInlines(children) : h.parseBlocks(children)
+      const content = isInline ? h.parseInlines(children) : h.parseBlocks(children);
 
-      const out: JSONContent = { type: def.name }
-      if (Object.keys(attrs).length > 0) out.attrs = attrs
+      const out: JSONContent = { type: def.name };
+      if (Object.keys(attrs).length > 0) out.attrs = attrs;
 
       if (content.length > 0) {
-        out.content = content
+        out.content = content;
       } else if (!isInline) {
-        out.content = [{ type: 'paragraph' }]
+        out.content = [{ type: "paragraph" }];
       }
-      return out
+      return out;
     },
-  }
+  };
 
   /*
    * Build the matching Tiptap Node. Each declared prop becomes a first-class
@@ -268,16 +268,16 @@ export function defineComarkComponent<TNodeView = unknown>(
    * `ComarkAttrs` extension because the component name isn't known when the
    * global config is built.
    */
-  const propAttrs: Record<string, { default: unknown }> = {}
+  const propAttrs: Record<string, { default: unknown }> = {};
   for (const [name, decl] of Object.entries(declared)) {
-    propAttrs[name] = { default: decl.default ?? null }
+    propAttrs[name] = { default: decl.default ?? null };
   }
 
   const extension = Node.create({
     name: def.name,
-    group: isInline ? 'inline' : 'block',
+    group: isInline ? "inline" : "block",
     inline: isInline,
-    content: isInline ? 'inline*' : 'block+',
+    content: isInline ? "inline*" : "block+",
     defining: !isInline,
     selectable: true,
     draggable: !isInline,
@@ -286,21 +286,21 @@ export function defineComarkComponent<TNodeView = unknown>(
       return {
         ...propAttrs,
         ...htmlAttrSpec({ reserved: Object.keys(declared) }),
-      }
+      };
     },
 
     parseHTML() {
-      return [{ tag: `${isInline ? 'span' : 'div'}[data-comark-component="${def.name}"]` }]
+      return [{ tag: `${isInline ? "span" : "div"}[data-comark-component="${def.name}"]` }];
     },
 
     renderHTML({ HTMLAttributes }) {
       return [
-        isInline ? 'span' : 'div',
-        mergeAttributes(HTMLAttributes, { 'data-comark-component': def.name }),
+        isInline ? "span" : "div",
+        mergeAttributes(HTMLAttributes, { "data-comark-component": def.name }),
         0,
-      ]
+      ];
     },
-  })
+  });
 
-  return { extension, spec, definition: def }
+  return { extension, spec, definition: def };
 }

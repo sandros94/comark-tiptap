@@ -1,10 +1,10 @@
-import { VueNodeViewRenderer } from '@tiptap/vue-3'
+import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import {
   defineComarkComponent,
   type ComarkComponentDefinition,
   type ComarkComponentExports,
-} from 'comark-tiptap'
-import type { Component } from 'vue'
+} from "comark-tiptap";
+import type { Component } from "vue";
 
 /**
  * Vue-typed `ComarkComponentDefinition`. The `nodeView` field is
@@ -12,7 +12,7 @@ import type { Component } from 'vue'
  * standard NodeView props (`node`, `updateAttributes`, `editor`, …) at
  * runtime.
  */
-export type ComarkVueComponentDefinition = ComarkComponentDefinition<Component>
+export type ComarkVueComponentDefinition = ComarkComponentDefinition<Component>;
 
 /**
  * Vue-typed `ComarkComponentExports`. Structurally identical to the
@@ -21,7 +21,7 @@ export type ComarkVueComponentDefinition = ComarkComponentDefinition<Component>
  * `addNodeView` extended with a `VueNodeViewRenderer` when a `nodeView`
  * was provided.
  */
-export type ComarkVueComponentExports = ComarkComponentExports<Component>
+export type ComarkVueComponentExports = ComarkComponentExports<Component>;
 
 /**
  * Define a Comark component with an optional Vue NodeView. Wraps the
@@ -54,16 +54,16 @@ export function defineComarkVueComponent(
    * spec), then extend its Tiptap Node with `addNodeView` so the Vue SFC
    * takes over rendering.
    */
-  const base = defineComarkComponent<Component>(def)
+  const base = defineComarkComponent<Component>(def);
 
-  if (!def.nodeView) return base
+  if (!def.nodeView) return base;
 
-  const nodeView = def.nodeView
+  const nodeView = def.nodeView;
   const extension = base.extension.extend({
     addNodeView() {
-      return VueNodeViewRenderer(nodeView)
+      return VueNodeViewRenderer(nodeView);
     },
-  })
+  });
 
-  return { ...base, extension }
+  return { ...base, extension };
 }

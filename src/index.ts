@@ -14,12 +14,12 @@ export type {
   PMMark,
   SetterContext,
   SetterInput,
-} from './types'
+} from "./types";
 
 /* @internal — content-routing helpers shared by the framework bindings; not part of the public API. */
-export { applyContent, isComarkTreeLike, readByFlavor, safeJson } from './content'
+export { applyContent, isComarkTreeLike, readByFlavor, safeJson } from "./content";
 
-export { ComarkKit, type ComarkKitOptions } from './kit'
+export { ComarkKit, type ComarkKitOptions } from "./kit";
 
 // Serializer surface
 export {
@@ -33,24 +33,24 @@ export {
   type ComarkSerializerStorage,
   type SerializerSpecs,
   type SetComarkContentOptions,
-} from './serializer'
+} from "./serializer";
 
 // Comark-specific Tiptap extensions
-export { ComarkCodeBlock } from './extensions/code-block'
-export { ComarkComment } from './extensions/comment'
-export { ComarkTemplate } from './extensions/template'
+export { ComarkCodeBlock } from "./extensions/code-block";
+export { ComarkComment } from "./extensions/comment";
+export { ComarkTemplate } from "./extensions/template";
 export {
   defineComarkComponent,
   type ComarkComponentDefinition,
   type ComarkComponentExports,
   type ComarkComponentProp,
-} from './extensions/component'
+} from "./extensions/component";
 
 // Global-attrs extension (ComarkKit already adds it)
-export { ComarkAttrs } from './attrs'
+export { ComarkAttrs } from "./attrs";
 
 // Operational stylesheet
-export { COMARK_STYLE_MARKER, comarkStyle, injectComarkStyles } from './style'
+export { COMARK_STYLE_MARKER, comarkStyle, injectComarkStyles } from "./style";
 
 // Spec objects and the aggregate
 export {
@@ -76,9 +76,9 @@ export {
   tableRowSpec,
   tableSpec,
   templateSpec,
-} from './specs'
+} from "./specs";
 
 // Utilities
-export { attrsEqual, cleanAttrs, hasNoHtmlAttrs, mergeAttrs, splitAttrs } from './utils/attrs'
-export { autoUnwrapBlocks } from './utils/auto-unwrap'
-export { htmlAttrSpec, type HtmlAttrSpecOptions } from './utils/html-attrs'
+export { attrsEqual, cleanAttrs, hasNoHtmlAttrs, mergeAttrs, splitAttrs } from "./utils/attrs";
+export { autoUnwrapBlocks } from "./utils/auto-unwrap";
+export { htmlAttrSpec, type HtmlAttrSpecOptions } from "./utils/html-attrs";

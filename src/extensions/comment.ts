@@ -1,4 +1,4 @@
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes } from "@tiptap/core";
 
 /**
  * Tiptap node for Comark comments (`<!-- … -->`). The Comark serializer
@@ -8,8 +8,8 @@ import { Node, mergeAttributes } from '@tiptap/core'
  * need to declare the comment's own `text` payload here.
  */
 export const ComarkComment = Node.create({
-  name: 'comarkComment',
-  group: 'block',
+  name: "comarkComment",
+  group: "block",
   atom: true,
   selectable: true,
 
@@ -21,20 +21,20 @@ export const ComarkComment = Node.create({
        * a non-empty payload with an empty marker.
        */
       text: {
-        default: '',
-        parseHTML: (el) => el.getAttribute('data-comark-comment') ?? '',
+        default: "",
+        parseHTML: (el) => el.getAttribute("data-comark-comment") ?? "",
         renderHTML: (attrs) => ({
-          'data-comark-comment': typeof attrs.text === 'string' ? attrs.text : '',
+          "data-comark-comment": typeof attrs.text === "string" ? attrs.text : "",
         }),
       },
-    }
+    };
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-comark-comment]' }]
+    return [{ tag: "div[data-comark-comment]" }];
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes)]
+    return ["div", mergeAttributes(HTMLAttributes)];
   },
-})
+});

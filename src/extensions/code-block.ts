@@ -1,6 +1,6 @@
-import { mergeAttributes } from '@tiptap/core'
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { CodeBlock } from '@tiptap/extension-code-block'
+import { mergeAttributes } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { CodeBlock } from "@tiptap/extension-code-block";
 
 /**
  * Stock `CodeBlock` extended with Comark-specific attrs. None render as
@@ -20,14 +20,14 @@ export const ComarkCodeBlock = CodeBlock.extend({
       highlights: { default: null, renderHTML: () => ({}) },
       meta: { default: null, renderHTML: () => ({}) },
       codeHtmlAttrs: { default: null, renderHTML: () => ({}) },
-    }
+    };
   },
 
   parseHTML() {
     return [
       {
-        tag: 'pre',
-        preserveWhitespace: 'full' as const,
+        tag: "pre",
+        preserveWhitespace: "full" as const,
         /*
          * Capture extra attrs on the inner `<code>` (e.g. `data-line-numbers`)
          * so they survive a DOM round-trip. Drop the `language-{lang}` class —
@@ -35,49 +35,49 @@ export const ComarkCodeBlock = CodeBlock.extend({
          * and skip kit-internal `data-comark-*` markers and PM's `data-pm-*`.
          */
         getAttrs(el: HTMLElement | string) {
-          if (!(el instanceof HTMLElement)) return false
-          const code = el.querySelector('code')
-          if (!code) return null
+          if (!(el instanceof HTMLElement)) return false;
+          const code = el.querySelector("code");
+          if (!code) return null;
           const inferredLang = (() => {
-            const cls = code.getAttribute('class') ?? ''
-            const m = /language-(\S+)/.exec(cls)
-            return m ? m[1] : null
-          })()
-          const out: Record<string, string> = {}
+            const cls = code.getAttribute("class") ?? "";
+            const m = /language-(\S+)/.exec(cls);
+            return m ? m[1] : null;
+          })();
+          const out: Record<string, string> = {};
           for (const attr of Array.from(code.attributes)) {
-            if (attr.name === 'class' && inferredLang && attr.value === `language-${inferredLang}`)
-              continue
-            if (attr.name.startsWith('data-pm-')) continue
-            if (attr.name.startsWith('data-comark-')) continue
-            out[attr.name] = attr.value
+            if (attr.name === "class" && inferredLang && attr.value === `language-${inferredLang}`)
+              continue;
+            if (attr.name.startsWith("data-pm-")) continue;
+            if (attr.name.startsWith("data-comark-")) continue;
+            out[attr.name] = attr.value;
           }
-          return Object.keys(out).length > 0 ? { codeHtmlAttrs: out } : null
+          return Object.keys(out).length > 0 ? { codeHtmlAttrs: out } : null;
         },
       },
-    ]
+    ];
   },
 
   renderHTML({
     node,
     HTMLAttributes,
   }: {
-    node: ProseMirrorNode
-    HTMLAttributes: Record<string, unknown>
+    node: ProseMirrorNode;
+    HTMLAttributes: Record<string, unknown>;
   }) {
-    const lang = node.attrs.language as string | null | undefined
-    const extra = (node.attrs.codeHtmlAttrs as Record<string, unknown> | null | undefined) ?? null
-    const codeAttrs: Record<string, unknown> = {}
+    const lang = node.attrs.language as string | null | undefined;
+    const extra = (node.attrs.codeHtmlAttrs as Record<string, unknown> | null | undefined) ?? null;
+    const codeAttrs: Record<string, unknown> = {};
     if (extra) {
       for (const [k, v] of Object.entries(extra)) {
-        if (v === null || v === undefined) continue
-        if (typeof v === 'string') codeAttrs[k] = v
-        else if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') {
-          codeAttrs[k] = String(v)
+        if (v === null || v === undefined) continue;
+        if (typeof v === "string") codeAttrs[k] = v;
+        else if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
+          codeAttrs[k] = String(v);
         }
       }
     }
     // Splice `language-{lang}` back onto `<code>` (dropped on parse).
-    if (lang) codeAttrs.class = `language-${lang}`
-    return ['pre', mergeAttributes(HTMLAttributes), ['code', codeAttrs, 0]]
+    if (lang) codeAttrs.class = `language-${lang}`;
+    return ["pre", mergeAttributes(HTMLAttributes), ["code", codeAttrs, 0]];
   },
-})
+});
