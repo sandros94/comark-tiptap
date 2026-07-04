@@ -16,7 +16,7 @@
     "@tiptap/pm": "^3.22.4",
     "@tiptap/starter-kit": "^3.22.4",
     "@tiptap/vue-3": "^3.22.4",
-    "comark": "^0.3.1",
+    "comark": "^0.5.0",
     "comark-tiptap": "workspace:*",
     "vue": "^3.5.33"
   },

@@ -256,8 +256,8 @@ importers:
         specifier: ^0.6.2
         version: 0.6.2(magicast@0.5.3)
       comark:
-        specifier: ^0.3.1
-        version: 0.3.2
+        specifier: ^0.5.0
+        version: 0.5.0
       happy-dom:
         specifier: ^20.10.6
         version: 20.10.6
@@ -325,8 +325,8 @@ importers:
         specifier: ^14.2.1
         version: 14.3.0(vue@3.5.39(typescript@6.0.3))
       comark:
-        specifier: ^0.3.1
-        version: 0.3.2
+        specifier: ^0.5.0
+        version: 0.5.0
       comark-tiptap:
         specifier: workspace:*
         version: link:../..
@@ -383,8 +383,8 @@ importers:
         specifier: ^3.22.4
         version: 3.27.1
       comark:
-        specifier: ^0.3.1
-        version: 0.3.2
+        specifier: ^0.5.0
+        version: 0.5.0
       comark-tiptap:
         specifier: workspace:*
         version: link:../..
@@ -435,8 +435,8 @@ importers:
         specifier: ^3.22.4
         version: 3.27.1(@floating-ui/dom@1.7.6)(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1)(vue@3.5.39(typescript@6.0.3))
       comark:
-        specifier: ^0.3.1
-        version: 0.3.2
+        specifier: ^0.5.0
+        version: 0.5.0
       comark-tiptap:
         specifier: workspace:*
         version: link:../..
@@ -3329,8 +3329,8 @@ packages:
   colortranslator@5.0.0:
     resolution: {integrity: sha512-Z3UPUKasUVDFCDYAjP2fmlVRf1jFHJv1izAmPjiOa0OCIw1W7iC8PZ2GsoDa8uZv+mKyWopxxStT9q05+27h7w==}
 
-  comark@0.3.2:
-    resolution: {integrity: sha512-wZ16V3PPItX49EScg6yDswqQ24bsMAhujZUGIf1dBKMmZjqGBa4HmXDe+WZNeqNQSOd8v4AJJT1NKyrvgdf3dA==}
+  comark@0.5.0:
+    resolution: {integrity: sha512-trD29JFZNVdixntA19BmhE2NuWq+MmXdri0YFN5jUCISbEgLVHqYWBYDVDVgPxnZp2hmaNa1ubHvKee6hkQqMQ==}
     peerDependencies:
       beautiful-mermaid: ^1.1.3
       katex: ^0.16.45
@@ -8468,7 +8468,7 @@ snapshots:
 
   colortranslator@5.0.0: {}
 
-  comark@0.3.2:
+  comark@0.5.0:
     dependencies:
       entities: 8.0.0
       htmlparser2: 12.0.0
