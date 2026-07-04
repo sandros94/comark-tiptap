@@ -1,0 +1,99 @@
+# .gitignore v1.7.0
+# https://gist.github.com/Sandros94/7f3dc1539c8f5905c495aa1bb417589c
+
+# Dependencies
+node_modules
+
+# Temp directories
+.temp
+*.tmp*
+.cache
+.eslintcache
+
+# Build output
+dist
+dist-ssr
+*.tsbuildinfo
+
+# Vite
+.vite
+
+# Nuxt
+.nitro
+.nuxt
+.output
+.data
+.vercel_build_output
+.build-*
+.netlify
+
+# PNPM
+.pnpm-store
+
+# Yarn
+**/.yarn/cache
+**/.yarn/*state*
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Testing
+reports
+coverage
+*.lcov
+.nyc_output
+tsconfig.vitest-temp.json
+__screenshots__/
+*.timestamp-*-*.mjs
+test-results/
+playwright-report/
+
+# Logs
+logs
+*.log*
+
+# VSCode
+.history
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/mcp.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/*.code-snippets
+
+# Editor directories and files
+*.iml
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OSX
+.DS_Store
+.AppleDouble
+.LSOverride
+.AppleDB
+.AppleDesktop
+.Spotlight-V100
+.Trashes
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Various
+.profile
+*.local
+
+# Project specific
+.playwright-mcp

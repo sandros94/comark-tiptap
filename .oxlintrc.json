@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  "plugins": ["unicorn", "typescript", "oxc", "vue", "vitest"],
+  "options": { "typeAware": true, "typeCheck": true },
+
+  "ignorePatterns": [
+    "**/CHANGELOG.md",
+    "**/pnpm*.yaml",
+    "**/playground/**",
+    "**/dist/**",
+    "**/*.gen.ts",
+    "**/.output/**",
+    "**/.data/**",
+    "**/.nuxt/**",
+    "**/.nitro/**",
+    "**/.cache/**",
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/playwright-report/**",
+    "**/test-results/**",
+    "**/.pgdata/**",
+    "**/drizzle/**"
+  ]
+}

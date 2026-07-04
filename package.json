@@ -1,0 +1,112 @@
+{
+  "name": "comark-tiptap",
+  "version": "0.0.0",
+  "description": "A Comark-aware Tiptap kit — edit markdown, Comark AST, or ProseMirror JSON with lossless round-trips, plus optional framework bindings.",
+  "keywords": [
+    "comark",
+    "editor",
+    "markdown",
+    "prosemirror",
+    "tiptap",
+    "vue"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Sandro Circi",
+    "email": "sandro.circi@digitoolmedia.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sandros94/comark-tiptap.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./vue": {
+      "types": "./dist/vue/index.d.mts",
+      "default": "./dist/vue/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "obuild",
+    "stub": "obuild --stub",
+    "dev": "pnpm -F playground-nuxt dev",
+    "dev:vue": "pnpm -F playground-vue dev",
+    "dev:nuxt": "pnpm -F playground-nuxt dev",
+    "dev:prepare": "obuild --stub && pnpm simple-git-hooks",
+    "lint": "oxlint . && oxfmt --check .",
+    "fmt": "oxlint --fix . && oxfmt .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsgo --noEmit",
+    "typecheck:playgrounds": "pnpm -F playground-vue typecheck && pnpm -F playground-nuxt typecheck",
+    "prepack": "pnpm build",
+    "release": "pnpm test && pnpm prepack && changelogen --release --push"
+  },
+  "devDependencies": {
+    "@tiptap/core": "^3.22.4",
+    "@tiptap/extension-code-block": "^3.22.4",
+    "@tiptap/extension-image": "^3.22.4",
+    "@tiptap/extension-table": "^3.22.4",
+    "@tiptap/pm": "^3.22.4",
+    "@tiptap/starter-kit": "^3.22.4",
+    "@tiptap/vue-3": "^3.22.4",
+    "@types/node": "^26",
+    "@typescript/native-preview": "7.0.0-dev.20260704.1",
+    "@vitest/coverage-v8": "^4.1.9",
+    "changelogen": "^0.6.2",
+    "comark": "^0.3.1",
+    "happy-dom": "^20.10.6",
+    "nano-staged": "^1.0.2",
+    "obuild": "^0.4.37",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "oxlint-tsgolint": "^0.24.0",
+    "simple-git-hooks": "^2.13.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9",
+    "vue": "^3.5.33"
+  },
+  "peerDependencies": {
+    "@tiptap/core": "^3.22.4",
+    "@tiptap/extension-code-block": "^3.22.4",
+    "@tiptap/extension-image": "^3.22.4",
+    "@tiptap/extension-table": "^3.22.4",
+    "@tiptap/pm": "^3.22.4",
+    "@tiptap/starter-kit": "^3.22.4",
+    "@tiptap/vue-3": "^3.22.4",
+    "comark": "^0.3.1",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "@tiptap/vue-3": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "resolutions": {
+    "comark-tiptap": "link:."
+  },
+  "simple-git-hooks": {
+    "pre-commit": "./node_modules/.bin/nano-staged"
+  },
+  "nano-staged": {
+    "*.{js,ts,mjs,cjs,json,yml,md,vue}": [
+      "pnpm run fmt"
+    ]
+  },
+  "packageManager": "pnpm@10.33.1"
+}

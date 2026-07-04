@@ -1,0 +1,37 @@
+{
+  "name": "playground-nuxt",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@tiptap/core": "^3.22.4",
+    "@tiptap/extension-code-block": "^3.22.4",
+    "@tiptap/extension-image": "^3.22.4",
+    "@tiptap/extension-mention": "^3.22.4",
+    "@tiptap/extension-placeholder": "^3.22.4",
+    "@tiptap/extension-table": "^3.22.4",
+    "@tiptap/pm": "^3.22.4",
+    "@tiptap/starter-kit": "^3.22.4",
+    "@tiptap/vue-3": "^3.22.4",
+    "@vueuse/core": "^14.2.1",
+    "comark": "^0.3.1",
+    "comark-tiptap": "workspace:*",
+    "defu": "^6.1.7",
+    "reka-ui": "^2.9.6",
+    "vue": "^3.5.33"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.103",
+    "@iconify-json/simple-icons": "^1.2.80",
+    "@nuxt/ui": "4.9.0",
+    "nuxt": "^4.4.8",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.6"
+  }
+}
