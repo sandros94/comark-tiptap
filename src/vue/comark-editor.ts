@@ -1,6 +1,7 @@
 import {
   computed,
   defineComponent,
+  getCurrentInstance,
   h,
   watch,
   type PropType,
@@ -90,6 +91,17 @@ export const ComarkEditor = defineComponent({
     const modelValue = (): ContentValue | undefined => props.modelValue;
     const setModel = (value: ContentValue): void => emit("update:modelValue", value);
 
+    /*
+     * Whether the consumer actually bound the model. `modelValue === undefined`
+     * alone can't tell an unbound editor from one bound to an empty ref
+     * (`v-model="ref()"`), so also look for the `update:modelValue` listener the
+     * compiler emits for any `v-model`. Without this, an editor bound to an
+     * initially-undefined ref would be write-only — edits never reach the ref.
+     */
+    const instance = getCurrentInstance();
+    const isModelBound = (): boolean =>
+      props.modelValue !== undefined || instance?.vnode.props?.["onUpdate:modelValue"] != null;
+
     function pickModifier(): ContentType | null {
       const m = props.modelModifiers;
       if (m.html) return "html";
@@ -148,7 +160,7 @@ export const ComarkEditor = defineComponent({
              *     microtask, so seed the shadow and let the first
              *     `onUpdate` do the sync.
              */
-            if (modelValue() !== undefined) {
+            if (isModelBound()) {
               const seedIsAsyncMarkdown =
                 inputFlavor.value === "markdown" && typeof seedAtMount === "string";
               if (seedIsAsyncMarkdown) {
@@ -163,7 +175,7 @@ export const ComarkEditor = defineComponent({
           },
           onUpdate: (e) => {
             emit("update", e);
-            if (modelValue() === undefined) return;
+            if (!isModelBound()) return;
             void pushModelFromEditor(e);
           },
         });

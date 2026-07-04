@@ -8,12 +8,12 @@ export const boldSpec: MarkSpec = {
   pmName: "bold",
   tags: ["strong", "b"],
 
-  toComark(mark: PMMark, child: ComarkNode): ComarkElement {
+  toComark(mark: PMMark, children: ComarkNode[]): ComarkElement {
     const attrs = mergeAttrs(
       {},
       (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
     );
-    return ["strong", attrs, child];
+    return ["strong", attrs, ...children];
   },
 
   fromComark(el: ComarkElement): PMMark {
@@ -31,12 +31,12 @@ export const italicSpec: MarkSpec = {
   pmName: "italic",
   tags: ["em", "i"],
 
-  toComark(mark: PMMark, child: ComarkNode): ComarkElement {
+  toComark(mark: PMMark, children: ComarkNode[]): ComarkElement {
     const attrs = mergeAttrs(
       {},
       (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
     );
-    return ["em", attrs, child];
+    return ["em", attrs, ...children];
   },
 
   fromComark(el: ComarkElement): PMMark {
@@ -55,12 +55,12 @@ export const strikeSpec: MarkSpec = {
   /* Comark canonicalises strikethrough to `<del>` on parse; `<s>`/`<strike>` are listed for hand-authored ASTs. */
   tags: ["del", "s", "strike"],
 
-  toComark(mark: PMMark, child: ComarkNode): ComarkElement {
+  toComark(mark: PMMark, children: ComarkNode[]): ComarkElement {
     const attrs = mergeAttrs(
       {},
       (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
     );
-    return ["del", attrs, child];
+    return ["del", attrs, ...children];
   },
 
   fromComark(el: ComarkElement): PMMark {
@@ -78,12 +78,12 @@ export const codeSpec: MarkSpec = {
   pmName: "code",
   tags: ["code"],
 
-  toComark(mark: PMMark, child: ComarkNode): ComarkElement {
+  toComark(mark: PMMark, children: ComarkNode[]): ComarkElement {
     const attrs = mergeAttrs(
       {},
       (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
     );
-    return ["code", attrs, child];
+    return ["code", attrs, ...children];
   },
 
   fromComark(el: ComarkElement): PMMark {
@@ -104,7 +104,7 @@ export const linkSpec: MarkSpec = {
   pmName: "link",
   tags: ["a"],
 
-  toComark(mark: PMMark, child: ComarkNode): ComarkElement {
+  toComark(mark: PMMark, children: ComarkNode[]): ComarkElement {
     const semantic: Record<string, unknown> = {
       href: (mark.attrs?.href as string | undefined) ?? "",
     };
@@ -116,7 +116,7 @@ export const linkSpec: MarkSpec = {
       semantic,
       (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
     );
-    return ["a", attrs, child];
+    return ["a", attrs, ...children];
   },
 
   fromComark(el: ComarkElement): PMMark {

@@ -149,6 +149,23 @@ describe("<ComarkEditor> (Vue, v-model)", () => {
     expect(m.model.value as string).toContain("# Changed");
   });
 
+  it("syncs edits to a v-model bound to an initially-undefined ref (not write-only)", async () => {
+    // `const md = ref<string>()` + `v-model.markdown="md"` is idiomatic; the
+    // guard must key off the binding's presence, not the current value being
+    // defined, or the editor becomes write-only.
+    const m = mount({ modifiers: { markdown: true } }); // model starts undefined
+    live.push(m);
+    const editor = await readyEditor(m);
+    await flush();
+    expect(m.model.value).toBeUndefined();
+
+    editor.commands.setComarkMarkdown("# Typed");
+    await flush();
+    await flush();
+    expect(typeof m.model.value).toBe("string");
+    expect(m.model.value as string).toContain("# Typed");
+  });
+
   it("pushes an outside-in model change into the editor (markdown)", async () => {
     const m = mount({ initial: "# A", modifiers: { markdown: true } });
     live.push(m);

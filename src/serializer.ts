@@ -38,6 +38,7 @@ export interface SerializerSpecs {
 
 const TEXT_PM_NAME = "text";
 const DOC_PM_NAME = "doc";
+const CODE_PM_NAME = "code";
 
 const isComarkText = (n: ComarkNode): n is string => typeof n === "string";
 const isComarkComment = (n: ComarkNode): n is ComarkComment => Array.isArray(n) && n[0] === null;
@@ -107,48 +108,91 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     return out;
   }
 
+  /* One flattened inline unit: its base Comark node (a text string or an inline
+     atom element) plus the PM marks wrapping it, ordered outermost-first and
+     already filtered to known specs with `code` forced innermost. */
+  interface InlineLeaf {
+    marks: PMMark[];
+    base: ComarkNode;
+  }
+
+  /* Keep PM's outer-first order for every mark except `code`, which must sit
+     innermost: inline code is literal text in markdown, so any mark nested
+     inside a `code` element (`['code',{},['em',…]]`) is silently dropped on
+     render. A stable sort moves `code` last while preserving sibling order. */
+  function normalizeLeafMarks(marks: PMMark[] | undefined): PMMark[] {
+    const known = (marks ?? []).filter((m) => m && markByPmName.has(m.type));
+    return known
+      .map((m, i) => [m, i] as const)
+      .sort(([a, ai], [b, bi]) => {
+        const ra = a.type === CODE_PM_NAME ? 1 : 0;
+        const rb = b.type === CODE_PM_NAME ? 1 : 0;
+        return ra - rb || ai - bi;
+      })
+      .map(([m]) => m);
+  }
+
+  /* Same mark identity: type + attrs. Adjacent runs under an identical mark
+     coalesce; a difference in htmlAttrs (class/id/…) keeps them separate. */
+  function sameMark(a: PMMark, b: PMMark): boolean {
+    return a.type === b.type && JSON.stringify(a.attrs ?? {}) === JSON.stringify(b.attrs ?? {});
+  }
+
+  /* Reconstruct Comark nesting from PM's flat per-run marks. At each depth,
+     consecutive leaves sharing the same mark are wrapped once and recursed
+     into — so a mark spanning mixed content (`**a _b_ c**`) yields a single
+     element instead of one wrapper per run (which would lose edge whitespace
+     and split a link into several). */
+  function groupLeaves(leaves: InlineLeaf[], depth: number): ComarkNode[] {
+    const out: ComarkNode[] = [];
+    let i = 0;
+    while (i < leaves.length) {
+      const leaf = leaves[i];
+      if (leaf.marks.length <= depth) {
+        out.push(leaf.base);
+        i++;
+        continue;
+      }
+      const mark = leaf.marks[depth];
+      let j = i + 1;
+      while (
+        j < leaves.length &&
+        leaves[j].marks.length > depth &&
+        sameMark(leaves[j].marks[depth], mark)
+      ) {
+        j++;
+      }
+      const inner = groupLeaves(leaves.slice(i, j), depth + 1);
+      const spec = markByPmName.get(mark.type);
+      /* spec is always present — normalizeLeafMarks dropped unknown marks;
+         fall back to splatting the children if that ever changes. */
+      if (spec) out.push(spec.toComark(mark, inner));
+      else out.push(...inner);
+      i = j;
+    }
+    return out;
+  }
+
   function serializeInlines(content: JSONContent[] | undefined): ComarkNode[] {
     if (!content) return [];
-    const out: ComarkNode[] = [];
+    const leaves: InlineLeaf[] = [];
     for (const child of content) {
       if (!child.type) continue;
-
-      /* PM stores marks outer-first (index 0 = outermost), so wrap from the
-         last mark inward — reverse iteration nests them correctly. */
       if (child.type === TEXT_PM_NAME) {
         const text = child.text ?? "";
         if (text.length === 0) continue;
-        const marks = (child.marks ?? []) as PMMark[];
-        let inner: ComarkNode = text;
-        for (let i = marks.length - 1; i >= 0; i--) {
-          const m = marks[i];
-          if (!m) continue;
-          const spec = markByPmName.get(m.type);
-          if (!spec) continue;
-          inner = spec.toComark(m, inner);
-        }
-        out.push(inner);
+        leaves.push({ marks: normalizeLeafMarks(child.marks as PMMark[] | undefined), base: text });
         continue;
       }
-
       /* Inline atom (image, hardBreak, inline component): the spec emits its own
-         element; marks wrap it outer-first, same as text runs. */
+         element; its marks wrap it exactly like a text run. */
       const spec = nodeByPmName.get(child.type);
       if (!spec) continue;
       const result = spec.toComark(child, helpers);
       if (result === null || result === undefined) continue;
-      let wrapped: ComarkNode = result;
-      const atomMarks = (child.marks ?? []) as PMMark[];
-      for (let i = atomMarks.length - 1; i >= 0; i--) {
-        const m = atomMarks[i];
-        if (!m) continue;
-        const ms = markByPmName.get(m.type);
-        if (!ms) continue;
-        wrapped = ms.toComark(m, wrapped);
-      }
-      out.push(wrapped);
+      leaves.push({ marks: normalizeLeafMarks(child.marks as PMMark[] | undefined), base: result });
     }
-    return out;
+    return groupLeaves(leaves, 0);
   }
 
   // Comark → PM JSON

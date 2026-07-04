@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { boldSpec } from "../src/specs/marks";
 import { paragraphSpec } from "../src/specs/paragraph";
+import { comarkSpecs } from "../src/specs";
 import { comarkToPmDoc, createSerializer, pmDocToComark } from "../src/serializer";
-import type { ComarkTree } from "../src/types";
+import type { ComarkNode, ComarkTree, JSONContent, PMMark } from "../src/types";
 
 const helpers = createSerializer({
   nodes: [paragraphSpec],
@@ -100,5 +101,60 @@ describe("createSerializer", () => {
     });
     expect(result.frontmatter).toEqual({ title: "T" });
     expect(result.meta).toEqual({ x: 1 });
+  });
+});
+
+describe("serializeInlines — mark nesting (PM → Comark)", () => {
+  const full = createSerializer(comarkSpecs);
+  /* Serialize a paragraph's inline children straight through the full spec set;
+     returns the Comark `p` element so nesting is visible. */
+  const inlineToComark = (content: JSONContent[]): ComarkNode =>
+    pmDocToComark({ type: "doc", content: [{ type: "paragraph", content }] }, full).nodes[0];
+  const run = (text: string, marks: PMMark[]): JSONContent => ({ type: "text", text, marks });
+
+  it("coalesces a single mark spanning mixed content into ONE element", () => {
+    // bold over: "a ", em "b", " c" — must NOT fragment into three <strong>s
+    // (which would lose the edge spaces on render).
+    expect(
+      inlineToComark([
+        run("a ", [{ type: "bold" }]),
+        run("b", [{ type: "bold" }, { type: "italic" }]),
+        run(" c", [{ type: "bold" }]),
+      ]),
+    ).toEqual(["p", {}, ["strong", {}, "a ", ["em", {}, "b"], " c"]]);
+  });
+
+  it("forces the `code` mark innermost regardless of PM order (italic + code)", () => {
+    // PM ranks `code` OUTSIDE italic, so it arrives as [code, italic]; emitting
+    // it that way (`code` wrapping `em`) drops the italic on render.
+    expect(inlineToComark([run("x", [{ type: "code" }, { type: "italic" }])])).toEqual([
+      "p",
+      {},
+      ["em", {}, ["code", {}, "x"]],
+    ]);
+  });
+
+  it("keeps `bold` outside `code` (bold is already innermost-safe)", () => {
+    expect(inlineToComark([run("x", [{ type: "bold" }, { type: "code" }])])).toEqual([
+      "p",
+      {},
+      ["strong", {}, ["code", {}, "x"]],
+    ]);
+  });
+
+  it("does not split a link that wraps mixed content into several links", () => {
+    const link: PMMark = { type: "link", attrs: { href: "/x", title: null } };
+    expect(
+      inlineToComark([run("a ", [link]), run("b", [link, { type: "bold" }]), run(" c", [link])]),
+    ).toEqual(["p", {}, ["a", { href: "/x" }, "a ", ["strong", {}, "b"], " c"]]);
+  });
+
+  it("keeps adjacent same-mark runs SEPARATE when their htmlAttrs differ", () => {
+    expect(
+      inlineToComark([
+        run("X", [{ type: "bold", attrs: { htmlAttrs: { class: "a" } } }]),
+        run("Y", [{ type: "bold", attrs: { htmlAttrs: { class: "b" } } }]),
+      ]),
+    ).toEqual(["p", {}, ["strong", { class: "a" }, "X"], ["strong", { class: "b" }, "Y"]]);
   });
 });

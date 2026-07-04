@@ -74,7 +74,10 @@ The identical content-dispatch/read logic each binding needs (`applyContent`, `r
 - **`htmlAttrs` added once, globally** via `ComarkAttrs.addGlobalAttributes` (not per extension). User components declare their own `htmlAttrs` in `addAttributes` because their names aren't known when global attrs resolve.
 - **Strings are markdown.** `setContent`/`insertContent`/`insertContentAt` route strings through `comark.parse`; `{ contentType: 'html' | 'json' }` are escape hatches. Object inputs auto-detect `ComarkTree` (has a `nodes` array) vs PM JSON.
 - **Async markdown seed.** `comark.parse` is async-only — string seeds apply one microtask late. Object paths stay sync. This diverges from `@tiptap/markdown` (sync). See `test/markdown-seed.test.ts`.
-- **List autoUnwrap mirrors Comark.** `listItemSpec.toComark` uses `autoUnwrapBlocks`: a single attrless paragraph flattens to inlines; a paragraph followed by a nested list keeps its wrapper (`['li',{},['p',{},'a'],['ul',…]]`). This matches comark ≥ 0.3.2's canonical form.
+- **List autoUnwrap mirrors Comark.** `listItemSpec.toComark` uses `autoUnwrapBlocks`: a single attrless paragraph flattens to inlines; a paragraph followed by a nested list keeps its wrapper (`['li',{},['p',{},'a'],['ul',…]]`). This matches comark's canonical form (verified on 0.5.0).
+- **Inline mark nesting is reconstructed, not per-run.** PM stores marks flat on each text run; `serializeInlines` (serializer.ts) rebuilds Comark nesting by grouping consecutive runs that share an outer mark into ONE element (`**a _b_ c**` → `['strong',{},'a ',['em',{},'b'],' c']`, not three `strong`s — the naive per-run wrap loses edge whitespace and splits a link into several). Two rules: (1) coalesce adjacent runs whose mark at a given depth is identical (type + attrs; differing `htmlAttrs` stay separate); (2) force the `code` mark **innermost** regardless of PM's mark order — inline code is literal in markdown, so a mark nested inside `code` (`['code',{},['em',…]]`) is dropped on render. `MarkSpec.toComark(mark, children)` takes an array so one wrapper can hold many children. Pinned by `test/serializer.test.ts` + `test/markdown-output.test.ts`.
+- **Link `target`/`rel` aren't auto-injected.** The kit nulls the bundled Link extension's default `target`/`rel` HTMLAttributes (kit.ts), so a plain `[x](/y)` round-trips clean instead of gaining `{target rel}`; explicit values from the markdown still ride on the link mark.
+- **Cell alignment bridges `style:text-align` ↔ native `align`.** comark expresses table alignment as `style:"text-align:X"`, its renderer ignores a bare `align` attr, and Tiptap's TableCell renders `align` back as that style. The cell spec reads either form into PM's native `align` and serializes it back as `style:text-align`; `style` is reserved on cells (attrs.ts) so a DOM round-trip doesn't double-represent it.
 
 ### Build
 
@@ -90,7 +93,7 @@ The identical content-dispatch/read logic each binding needs (`applyContent`, `r
 ## Code conventions
 
 - ESM, type-first, modern JS. Prefer Web APIs over Node APIs.
-- Formatting is `oxfmt`: single quotes, no semicolons, 2-space, trailing commas. Run `pnpm fmt`.
+- Formatting is `oxfmt`: double quotes, semicolons, 2-space, trailing commas (see `.oxfmtrc.json`). Run `pnpm fmt`.
 - **Comments** only for maintenance / strange edge cases. **JSDoc** focuses on _how_ (not _why_), stays brief, and provides examples + types where useful downstream.
 - Study surrounding patterns before adding code.
 
@@ -102,6 +105,6 @@ The identical content-dispatch/read logic each binding needs (`applyContent`, `r
 
 ## Notes / backlog
 
-- **comark version.** Peer is `comark@^0.3.1` (matches the tested round-trips). comark `0.5.0` exists but may change the AST/parse surface the serializer depends on — bumping needs a serializer review + full round-trip re-verification before it lands.
+- **comark version.** Peer + dev are pinned to `comark@^0.5.0` (the tested round-trips run against 0.5.0). The parse AST surface is unchanged from 0.3.x (`[tag, attrs, …children]`, heading auto-`id`, `del`, string `start`, `style:"text-align:X"` on cells); 0.5.0's only relevant render change vs 0.3.2 is that ordered-list `start` is now emitted. Bumping again needs a serializer review + full round-trip re-verification before it lands.
 - **`SetContentOptions`** is still defined per-binding (each extends core's `SetComarkContentOptions` with `contentType`); minor, could be lifted to core too.
 - **BYO-editor timing.** `<ComarkEditor editor={…}>` decides managed-vs-BYO at first render, so passing an editor that isn't ready yet (e.g. straight from `useComarkEditor`) falls into managed mode and spins an unused internal editor. Both playgrounds use managed mode (`v-model` / `value`+`onChange`) to avoid this; consumers wanting true BYO should pass an already-created editor.

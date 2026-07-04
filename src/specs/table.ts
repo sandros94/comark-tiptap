@@ -112,7 +112,36 @@ export const tableRowSpec: NodeSpec = {
 
 // #region tableHeader / tableCell — share the same body
 
+/* `align` is read as a native input attr (hand-authored ASTs use it), but the
+   PM `align` attr is serialized back out as `style:"text-align:X"` — comark's
+   renderer only honours alignment expressed that way, and comark itself emits
+   alignment as a `style` attr. `style` is reserved on cells (see attrs.ts) so a
+   DOM round-trip doesn't also harvest the rendered text-align into htmlAttrs. */
 const CELL_SEMANTIC = ["colspan", "rowspan", "colwidth", "align"] as const;
+
+/* Pull `text-align` out of a CSS `style` string, keeping any other
+   declarations (comark cells only carry text-align, but hand-authored /
+   DOM-round-tripped cells may carry more). */
+function extractTextAlign(style: string): { align?: string; rest: string } {
+  let align: string | undefined;
+  const kept: string[] = [];
+  for (const decl of style.split(";")) {
+    const trimmed = decl.trim();
+    if (trimmed === "") continue;
+    const m = /^text-align\s*:\s*(\S+)/i.exec(trimmed);
+    if (m) align = m[1].toLowerCase();
+    else kept.push(trimmed);
+  }
+  return { align, rest: kept.join("; ") };
+}
+
+/* Merge `text-align:<align>` into a style bag, replacing any prior text-align.
+   Emits comark's compact `text-align:left` form (no space) for clean round-trips. */
+function withTextAlign(style: unknown, align: string): string {
+  const rest = typeof style === "string" ? extractTextAlign(style).rest : "";
+  const ta = `text-align:${align}`;
+  return rest ? `${ta}; ${rest}` : ta;
+}
 
 function makeCellSpec(pmName: "tableHeader" | "tableCell", tag: "th" | "td"): NodeSpec {
   return {
@@ -127,12 +156,15 @@ function makeCellSpec(pmName: "tableHeader" | "tableCell", tag: "th" | "td"): No
       if (colspan != null && Number(colspan) !== 1) semantic.colspan = Number(colspan);
       if (rowspan != null && Number(rowspan) !== 1) semantic.rowspan = Number(rowspan);
       if (colwidth != null) semantic.colwidth = colwidth;
-      if (typeof align === "string" && align.length > 0) semantic.align = align;
 
-      const attrs = mergeAttrs(
-        semantic,
-        (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-      );
+      const htmlAttrs: Record<string, unknown> = {
+        ...(node.attrs?.htmlAttrs as Record<string, unknown> | undefined),
+      };
+      if (typeof align === "string" && align.length > 0) {
+        htmlAttrs.style = withTextAlign(htmlAttrs.style, align);
+      }
+
+      const attrs = mergeAttrs(semantic, htmlAttrs);
 
       /* A single attrless paragraph flattens to inlines (canonical markdown cell); anything else serializes as blocks. DOM-roundtripped cells (PM-default `htmlAttrs: {}`) still count as attrless. */
       const content = node.content ?? [];
@@ -159,9 +191,20 @@ function makeCellSpec(pmName: "tableHeader" | "tableCell", tag: "th" | "td"): No
         const cw = semantic.colwidth.map((n) => Number(n)).filter((n) => Number.isFinite(n));
         if (cw.length > 0) attrs.colwidth = cw;
       }
-      if (typeof semantic.align === "string" && semantic.align.length > 0) {
-        attrs.align = semantic.align;
+      /* Alignment: a native `align` (hand-authored), else `text-align` parsed
+         out of comark's `style` attr. Non-alignment style declarations stay in
+         htmlAttrs. */
+      let align =
+        typeof semantic.align === "string" && semantic.align.length > 0
+          ? semantic.align
+          : undefined;
+      if (typeof htmlAttrs.style === "string") {
+        const { align: styleAlign, rest } = extractTextAlign(htmlAttrs.style);
+        if (styleAlign && !align) align = styleAlign;
+        if (rest) htmlAttrs.style = rest;
+        else delete htmlAttrs.style;
       }
+      if (align) attrs.align = align;
       if (Object.keys(htmlAttrs).length > 0) attrs.htmlAttrs = htmlAttrs;
 
       /* PM cells need block content: wrap inline runs in a single paragraph, but switch to block mode if a real block child is present. */

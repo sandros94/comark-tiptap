@@ -109,11 +109,35 @@ export const ComarkKit = Extension.create<ComarkKitOptions>({
      * starterKit is false.
      */
     if (this.options.starterKit !== false) {
+      const starterKit = this.options.starterKit;
+      /*
+       * Null the Link extension's auto-injected `target`/`rel` HTMLAttributes.
+       * They default to `_blank` / `noopener noreferrer nofollow`, which the PM
+       * schema bakes onto every link's attrs — so a plain `[x](/y)` would
+       * serialize back out as `[x](/y){target="_blank" rel="…"}`. In a
+       * markdown-source editor the link's own attrs are the source of truth;
+       * explicit `{target rel}` from the markdown still rides through. Consumer
+       * `starterKit.link` config layers on top.
+       */
+      const userLink = starterKit.link;
+      const link =
+        userLink === false
+          ? false
+          : {
+              ...userLink,
+              HTMLAttributes: {
+                target: null,
+                rel: null,
+                class: null,
+                ...userLink?.HTMLAttributes,
+              },
+            };
       exts.push(
         StarterKit.configure({
           codeBlock: false,
           underline: false,
-          ...this.options.starterKit,
+          ...starterKit,
+          link,
         }),
         ComarkCodeBlock,
       );

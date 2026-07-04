@@ -94,6 +94,76 @@ describe("<ComarkEditor> (React, controlled)", () => {
     expect(onChange.mock.calls.length).toBe(settled);
   });
 
+  it("fires onChange for an editor whose value starts undefined (not write-only)", async () => {
+    // `value={undefined}` + an `onChange` is still controlled — just empty.
+    // The guard must key off `onChange`, not the value being defined.
+    let editor: Editor | null = null;
+    const onChange = vi.fn<(v: ContentValue) => void>();
+    function Host(): React.ReactNode {
+      return (
+        <ComarkEditor
+          value={undefined}
+          contentType="markdown"
+          onChange={onChange}
+          onReady={(e) => {
+            editor = e;
+          }}
+        />
+      );
+    }
+    render(<Host />);
+    await waitFor(() => expect(editor).not.toBeNull());
+    const ed = editor as unknown as Editor;
+
+    onChange.mockClear();
+    await act(async () => {
+      ed.commands.setComarkMarkdown("# Typed");
+      await tick();
+    });
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    expect(onChange.mock.calls.at(-1)?.[0] as string).toContain("# Typed");
+  });
+
+  it("does not clobber an in-flight edit when an unrelated re-render lands (lagging value)", async () => {
+    // Parent holds `value` fixed (does NOT reflect onChange) — a debounced /
+    // validated store. An unrelated re-render must not re-apply the stale value
+    // and wipe the user's edit; the effect keys off stable `setContent`.
+    let editor: Editor | null = null;
+    let bump: () => void = () => {};
+    function Host(): React.ReactNode {
+      const [, setN] = useState(0);
+      bump = () => setN((n) => n + 1);
+      return (
+        <ComarkEditor
+          value="# A"
+          contentType="markdown"
+          onChange={() => {}}
+          onReady={(e) => {
+            editor = e;
+          }}
+        />
+      );
+    }
+    render(<Host />);
+    await waitFor(() => expect(editor).not.toBeNull());
+    const ed = editor as unknown as Editor;
+    await waitFor(() => expect(ed.getText()).toContain("A"));
+
+    await act(async () => {
+      ed.commands.setComarkMarkdown("# EDITED");
+      await tick();
+    });
+    await waitFor(() => expect(ed.getText()).toContain("EDITED"));
+
+    // Unrelated re-render (sibling state, context, etc.) — the stale `value`
+    // ("# A") must NOT be re-applied over the live edit.
+    await act(async () => {
+      bump();
+      await tick();
+    });
+    expect(ed.getText()).toContain("EDITED");
+  });
+
   it("renders a pre-built editor (BYO) and skips the internal one", async () => {
     const editor = new Editor({ extensions: [ComarkKit], content: "" });
     const { container } = render(

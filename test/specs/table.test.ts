@@ -40,16 +40,55 @@ describe("table round-trip", () => {
     expect(tableSpec.toComark(pm, helpers)).toEqual(original);
   });
 
-  it("preserves alignment as a native cell attr (stock Tiptap TableCell declares align)", () => {
+  it("reads comark's `style:text-align` into the native cell align attr and back", () => {
+    // Comark expresses alignment as `style:"text-align:X"` (its renderer ignores
+    // a bare `align` attr), so that's the canonical round-trip shape.
     const original: ComarkElement = [
       "table",
       {},
-      ["tbody", {}, ["tr", {}, ["td", { align: "right" }, "X"], ["td", { align: "center" }, "Y"]]],
+      [
+        "tbody",
+        {},
+        [
+          "tr",
+          {},
+          ["td", { style: "text-align:right" }, "X"],
+          ["td", { style: "text-align:center" }, "Y"],
+        ],
+      ],
     ];
     const pm = tableSpec.fromComark(original, helpers)!;
     expect(pm.content?.[0]?.content?.[0]?.attrs).toEqual({ align: "right" });
     expect(pm.content?.[0]?.content?.[1]?.attrs).toEqual({ align: "center" });
     expect(tableSpec.toComark(pm, helpers)).toEqual(original);
+  });
+
+  it("reads a hand-authored native `align` attr and canonicalizes it to `style:text-align`", () => {
+    const pm = tableSpec.fromComark(
+      ["table", {}, ["tbody", {}, ["tr", {}, ["td", { align: "right" }, "X"]]]] as ComarkElement,
+      helpers,
+    )!;
+    expect(pm.content?.[0]?.content?.[0]?.attrs).toEqual({ align: "right" });
+    expect(tableSpec.toComark(pm, helpers)).toEqual([
+      "table",
+      {},
+      ["tbody", {}, ["tr", {}, ["td", { style: "text-align:right" }, "X"]]],
+    ]);
+  });
+
+  it("keeps non-alignment cell styles in htmlAttrs alongside the bridged align", () => {
+    const pm = tableSpec.fromComark(
+      [
+        "table",
+        {},
+        ["tbody", {}, ["tr", {}, ["td", { style: "text-align:center; color:red" }, "X"]]],
+      ] as ComarkElement,
+      helpers,
+    )!;
+    expect(pm.content?.[0]?.content?.[0]?.attrs).toEqual({
+      align: "center",
+      htmlAttrs: { style: "color:red" },
+    });
   });
 
   it("preserves colspan/rowspan as semantic attrs", () => {

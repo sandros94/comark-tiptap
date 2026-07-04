@@ -39,10 +39,15 @@ const RESERVED_BY_TYPE: ReadonlyArray<readonly [readonly string[], readonly stri
   [["codeBlock"], ["language"]],
   // Image native attrs: src/alt/title/width/height.
   [["image"], ["src", "alt", "title", "width", "height"]],
-  // Cell/header native attrs: colspan/rowspan/colwidth/align.
+  /*
+   * Cell/header native attrs: colspan/rowspan/colwidth/align. `style` is
+   * reserved too: TableCell renders `align` as `style:"text-align:X"`, so a DOM
+   * round-trip would otherwise harvest that computed style into htmlAttrs and
+   * double-represent the alignment. The cell spec bridges style↔align itself.
+   */
   [
     ["tableCell", "tableHeader"],
-    ["colspan", "rowspan", "colwidth", "align"],
+    ["colspan", "rowspan", "colwidth", "align", "style"],
   ],
   /*
    * Reserve `style`: TableKit's renderHTML auto-injects a computed

@@ -83,8 +83,13 @@ export interface NodeSpec {
 export interface MarkSpec {
   pmName: string;
   tags: readonly string[];
-  /** Wrap an already-serialized child node with this mark. */
-  toComark: (mark: PMMark, child: ComarkNode) => ComarkElement;
+  /**
+   * Wrap already-serialized child nodes with this mark. Receives every
+   * consecutive sibling that shares this mark as its outermost layer, so a
+   * mark spanning mixed content (`**a _b_ c**`) becomes one element, not one
+   * per run.
+   */
+  toComark: (mark: PMMark, children: ComarkNode[]) => ComarkElement;
   /** Read this mark off a Comark element. */
   fromComark: (el: ComarkElement) => PMMark | null;
 }

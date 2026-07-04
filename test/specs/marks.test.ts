@@ -13,19 +13,19 @@ const helpers = createSerializer({
 
 describe("boldSpec.toComark", () => {
   it("wraps a child in `<strong>`", () => {
-    expect(boldSpec.toComark({ type: "bold" }, "hi")).toEqual(["strong", {}, "hi"]);
+    expect(boldSpec.toComark({ type: "bold" }, ["hi"])).toEqual(["strong", {}, "hi"]);
   });
 
   it("emits htmlAttrs as flat attributes", () => {
     const result = boldSpec.toComark(
       { type: "bold", attrs: { htmlAttrs: { class: "hi", id: "b1" } } },
-      "X",
+      ["X"],
     );
     expect(result).toEqual(["strong", { class: "hi", id: "b1" }, "X"]);
   });
 
   it("canonicalizes <b> tags to <strong> on the way out", () => {
-    expect(boldSpec.toComark({ type: "bold" }, "x")[0]).toBe("strong");
+    expect(boldSpec.toComark({ type: "bold" }, ["x"])[0]).toBe("strong");
   });
 });
 
@@ -70,9 +70,9 @@ describe("bold round-trip via helpers", () => {
 
 describe("italicSpec", () => {
   it("renders as `<em>` with htmlAttrs flat", () => {
-    expect(italicSpec.toComark({ type: "italic" }, "x")).toEqual(["em", {}, "x"]);
+    expect(italicSpec.toComark({ type: "italic" }, ["x"])).toEqual(["em", {}, "x"]);
     expect(
-      italicSpec.toComark({ type: "italic", attrs: { htmlAttrs: { class: "q" } } }, "X"),
+      italicSpec.toComark({ type: "italic", attrs: { htmlAttrs: { class: "q" } } }, ["X"]),
     ).toEqual(["em", { class: "q" }, "X"]);
   });
 
@@ -89,9 +89,9 @@ describe("italicSpec", () => {
 
 describe("strikeSpec", () => {
   it("renders as `<del>` with htmlAttrs flat", () => {
-    expect(strikeSpec.toComark({ type: "strike" }, "x")).toEqual(["del", {}, "x"]);
+    expect(strikeSpec.toComark({ type: "strike" }, ["x"])).toEqual(["del", {}, "x"]);
     expect(
-      strikeSpec.toComark({ type: "strike", attrs: { htmlAttrs: { class: "k" } } }, "X"),
+      strikeSpec.toComark({ type: "strike", attrs: { htmlAttrs: { class: "k" } } }, ["X"]),
     ).toEqual(["del", { class: "k" }, "X"]);
   });
 
@@ -109,12 +109,10 @@ describe("strikeSpec", () => {
 
 describe("codeSpec", () => {
   it("renders as `<code>` with htmlAttrs flat", () => {
-    expect(codeSpec.toComark({ type: "code" }, "x")).toEqual(["code", {}, "x"]);
-    expect(codeSpec.toComark({ type: "code", attrs: { htmlAttrs: { class: "k" } } }, "X")).toEqual([
-      "code",
-      { class: "k" },
-      "X",
-    ]);
+    expect(codeSpec.toComark({ type: "code" }, ["x"])).toEqual(["code", {}, "x"]);
+    expect(
+      codeSpec.toComark({ type: "code", attrs: { htmlAttrs: { class: "k" } } }, ["X"]),
+    ).toEqual(["code", { class: "k" }, "X"]);
   });
 
   it("reads `<code>` into a code mark", () => {
@@ -139,13 +137,13 @@ describe("linkSpec.toComark", () => {
           htmlAttrs: { "data-x": "y" },
         },
       },
-      "go",
+      ["go"],
     );
     expect(result).toEqual(["a", { "href": "https://x.io", "title": "T", "data-x": "y" }, "go"]);
   });
 
   it("emits href even when null/empty (for AST stability)", () => {
-    expect(linkSpec.toComark({ type: "link" }, "x")).toEqual(["a", { href: "" }, "x"]);
+    expect(linkSpec.toComark({ type: "link" }, ["x"])).toEqual(["a", { href: "" }, "x"]);
   });
 
   it("round-trips target/rel/class as native PM attrs (not htmlAttrs)", () => {
@@ -159,7 +157,7 @@ describe("linkSpec.toComark", () => {
           class: "btn",
         },
       },
-      "go",
+      ["go"],
     );
     expect(result).toEqual([
       "a",

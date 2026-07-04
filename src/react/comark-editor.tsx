@@ -139,9 +139,12 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     editorOptions,
     onError,
     onCreate: (e) => {
-      /* Async markdown seed isn't applied yet — seed the shadow so the first
-         update syncs. Sync cross-flavor seed (`content` set) pushes now. */
-      if (value !== undefined) {
+      /* Controlled = an `onChange` is wired up (not "value is defined" —
+         `value={undefined}` with an onChange is still controlled, just empty;
+         gating on the value would make that editor write-only). Async markdown
+         seed isn't applied yet — seed the shadow so the first update syncs;
+         a sync cross-flavor seed (`content` set) pushes now. */
+      if (onChange) {
         const seedIsAsyncMarkdown = contentType === "markdown" && typeof seedAtMount === "string";
         if (seedIsAsyncMarkdown) void initShadow(e);
         else if (content !== undefined) void pushValueFromEditor(e);
@@ -151,14 +154,17 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     },
     onUpdate: (e) => {
       onUpdate?.(e);
-      if (value !== undefined) void pushValueFromEditor(e);
+      if (onChange) void pushValueFromEditor(e);
     },
   });
 
-  const editor = internal.editor;
+  const { editor, setContent } = internal;
 
   /* Outside-in sync: push a changed controlled value into the editor unless
-     the shadow says we already have it. */
+     the shadow says we already have it. Deps are the stable `setContent`
+     (memoized on [editor, contentType]) — NOT the `internal` object, which is a
+     fresh reference every render and would re-run this effect on every render,
+     re-applying a lagging `value` and clobbering in-flight edits. */
   useEffect(() => {
     if (value === undefined || !editor) return;
     if (contentType === "markdown" && typeof value === "string") {
@@ -169,8 +175,8 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
       if (j === shadow.current) return;
       shadow.current = j;
     }
-    void internal.setContent(value, { contentType });
-  }, [value, editor, contentType, internal]);
+    void setContent(value, { contentType });
+  }, [value, editor, contentType, setContent]);
 
   if (!editor) return <div data-comark-editor="">{fallback ?? null}</div>;
   return (
