@@ -20,8 +20,8 @@ import {
   type ShallowRef,
   type VNode,
 } from "vue";
-import { NodeViewWrapper } from "@tiptap/vue-3";
-import type { Editor } from "@tiptap/vue-3";
+import { Editor, NodeViewWrapper } from "@tiptap/vue-3";
+import { ComarkKit } from "comark-tiptap";
 import type { ComarkTree, ContentType, ContentValue, JSONContent } from "comark-tiptap";
 import {
   ComarkEditor,
@@ -237,6 +237,50 @@ describe("<ComarkEditor> (Vue, v-model)", () => {
     const editor = await readyEditor(m);
     await flush();
     expect(editor.getText()).toContain("Seeded");
+  });
+
+  it("a BYO :editor arriving late does not spin up a throwaway internal editor", async () => {
+    // `:editor="editorFromHook"` starts undefined (the editor resolves after
+    // mount). Keying BYO off the prop's presence keeps the internal editor from
+    // being created for that first tick.
+    const editorRef = shallowRef<Editor | undefined>(undefined);
+    let readyCount = 0;
+    const Host = defineComponent({
+      setup() {
+        return () =>
+          hLoose(
+            ComarkEditor,
+            {
+              editor: editorRef.value,
+              onReady: () => {
+                readyCount++;
+              },
+            },
+            { fallback: () => h("div", { "data-test": "fb" }, "loading") },
+          );
+      },
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const app = createApp(Host);
+    app.mount(container);
+
+    // A buggy internal editor would have been created + emitted `ready` by now.
+    await flush();
+    await flush();
+    expect(container.querySelector('[data-test="fb"]')).not.toBeNull();
+    expect(readyCount).toBe(0);
+
+    const byo = new Editor({ extensions: [ComarkKit], content: "" });
+    editorRef.value = byo;
+    await nextTick();
+    await flush();
+    expect(container.querySelector("[data-comark-editor-content]")).not.toBeNull();
+    expect(readyCount).toBe(0); // BYO branch renders the caller's editor, no internal one
+
+    app.unmount();
+    container.remove();
+    byo.destroy();
   });
 });
 

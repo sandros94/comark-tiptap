@@ -40,6 +40,15 @@ const TEXT_PM_NAME = "text";
 const DOC_PM_NAME = "doc";
 const CODE_PM_NAME = "code";
 
+/*
+ * comark's `parse` applies streaming auto-close by default: it "closes" dangling
+ * inline markers (a lone `*`, `~`, `$name`, `|x|`, …) by appending characters,
+ * so a lone `*` in text comes back as `*…*`. That's correct for incremental /
+ * streaming input but WRONG for the complete documents the editor always parses —
+ * it corrupts literal text (see comarkdown/comark#136, #179, #195). Opt out.
+ */
+const PARSE_OPTIONS = { autoClose: false } as const;
+
 const isComarkText = (n: ComarkNode): n is string => typeof n === "string";
 const isComarkComment = (n: ComarkNode): n is ComarkComment => Array.isArray(n) && n[0] === null;
 const isComarkElement = (n: ComarkNode): n is ComarkElement =>
@@ -593,7 +602,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       } else {
         const markdown = opts.content;
         opts.content = "";
-        parse(markdown)
+        parse(markdown, PARSE_OPTIONS)
           .then((tree) => {
             if (this.editor.isDestroyed) return;
             this.editor.commands.setComarkAst(tree, { emitUpdate: true });
@@ -654,7 +663,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       setComarkMarkdown:
         (markdown: string, options?: SetComarkContentOptions) =>
         ({ editor }) => {
-          parse(markdown)
+          parse(markdown, PARSE_OPTIONS)
             .then((tree) => {
               if (editor.isDestroyed) return;
               editor.commands.setComarkAst(tree, options);
@@ -691,7 +700,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseSetContent(parsed as Content, options)(props);
         }
-        parse(content)
+        parse(content, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             /* Outer transaction has settled here, so a fresh command is safe. */
@@ -719,7 +728,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseInsertContent(parsed as Content, options)(props);
         }
-        parse(value)
+        parse(value, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline);
@@ -744,7 +753,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseInsertContentAt(position, parsed as Content, options)(props);
         }
-        parse(value)
+        parse(value, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline);

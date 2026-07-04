@@ -61,6 +61,10 @@ describe("markdown output — inline mark nesting (regression pins)", () => {
       '[x](/y){target="_blank"}',
     ],
     ["adjacent separate marks stay readable", "a **b** **c** d\n", "a **b** **c** d"],
+    // Streaming auto-close is off (PARSE_OPTIONS) — a dangling marker in a
+    // COMPLETE document must stay literal, not gain a closing character.
+    ["a lone `*` stays literal (no auto-close)", "a * b\n", "a * b"],
+    ["a lone `~` stays literal (no auto-close)", "use ~ tilde\n", "use ~ tilde"],
   ])("%s", async (_label, input, expected) => {
     expect(norm(await roundTrip(input))).toBe(expected);
   });

@@ -102,6 +102,15 @@ export const ComarkEditor = defineComponent({
     const isModelBound = (): boolean =>
       props.modelValue !== undefined || instance?.vnode.props?.["onUpdate:modelValue"] != null;
 
+    /*
+     * BYO is opt-in by PASSING the `:editor` prop — keyed by its presence, not
+     * its value. A consumer wiring `:editor="editorFromHook"` starts with an
+     * undefined ref (the editor resolves after mount); branching on the value
+     * would spin up an unused internal editor for that first tick. `vnode.props`
+     * carries the key even when the bound value is `undefined`.
+     */
+    const isByo = instance?.vnode.props != null && "editor" in instance.vnode.props;
+
     function pickModifier(): ContentType | null {
       const m = props.modelModifiers;
       if (m.html) return "html";
@@ -140,7 +149,7 @@ export const ComarkEditor = defineComponent({
     const seedAtMount: ContentValue | undefined =
       props.content !== undefined ? props.content : modelValue();
 
-    const internal = props.editor
+    const internal = isByo
       ? null
       : useComarkEditor({
           content: seedAtMount,

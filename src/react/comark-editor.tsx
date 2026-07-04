@@ -55,21 +55,34 @@ export interface ComarkEditorProps {
  * ```
  */
 export function ComarkEditor(props: ComarkEditorProps): ReactNode {
-  /* BYO editor: a thin EditorContent wrapper with no internal editor.
-     Branching by component keeps hooks unconditional in the managed path. */
-  if (props.editor) {
-    return (
-      <div data-comark-editor="">
-        {renderChildren(props.children, props.editor)}
-        <EditorContent
-          editor={props.editor}
-          className={props.className}
-          data-comark-editor-content=""
-        />
-      </div>
-    );
+  /*
+   * BYO is opt-in by PASSING the `editor` prop — key by its presence, not its
+   * current truthiness. `useEditor`/`useComarkEditor` return `null` on the
+   * first render, so `<ComarkEditor editor={hook.editor} />` starts with
+   * `editor === undefined`; branching on truthiness would fall into managed
+   * mode, spin up (then immediately destroy) a throwaway internal editor when
+   * the real one resolves a tick later. Branching on presence keeps the
+   * component type stable across that null→ready transition, so no internal
+   * editor is ever created in BYO mode.
+   *
+   * Each branch is its own component, so hooks stay unconditional within each.
+   */
+  if ("editor" in props) {
+    return <ByoComarkEditor {...props} />;
   }
   return <ManagedComarkEditor {...props} />;
+}
+
+/** BYO branch: renders the caller's editor, or the fallback until it resolves. */
+function ByoComarkEditor(props: ComarkEditorProps): ReactNode {
+  const { editor, children, className, fallback } = props;
+  if (!editor) return <div data-comark-editor="">{fallback ?? null}</div>;
+  return (
+    <div data-comark-editor="">
+      {renderChildren(children, editor)}
+      <EditorContent editor={editor} className={className} data-comark-editor-content="" />
+    </div>
+  );
 }
 
 function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {

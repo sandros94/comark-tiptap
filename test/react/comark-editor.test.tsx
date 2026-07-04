@@ -164,6 +164,45 @@ describe("<ComarkEditor> (React, controlled)", () => {
     expect(ed.getText()).toContain("EDITED");
   });
 
+  it("a BYO editor arriving late does not spin up a throwaway internal editor", async () => {
+    // `<ComarkEditor editor={hook.editor} />` where the hook returns null on the
+    // first render must NOT fall into managed mode and create (then destroy) an
+    // internal editor. Branching on the `editor` prop's PRESENCE keeps it in the
+    // BYO branch across the null→ready transition.
+    const readied: Editor[] = [];
+    let setEd: (e: Editor | undefined) => void = () => {};
+    function Host(): React.ReactNode {
+      const [ed, setE] = useState<Editor | undefined>(undefined);
+      setEd = setE;
+      return (
+        <ComarkEditor
+          editor={ed}
+          onReady={(e) => readied.push(e)}
+          fallback={<span data-test="fb">loading</span>}
+        />
+      );
+    }
+    const { container } = render(<Host />);
+    // Give a buggy managed fallback time to create + ready an internal editor.
+    await act(async () => {
+      await tick();
+      await tick();
+    });
+    expect(container.querySelector('[data-test="fb"]')).not.toBeNull();
+    expect(readied).toHaveLength(0); // no internal editor was ever created
+
+    const byo = new Editor({ extensions: [ComarkKit], content: "" });
+    await act(async () => {
+      setEd(byo);
+      await tick();
+    });
+    await waitFor(() =>
+      expect(container.querySelector("[data-comark-editor-content]")).not.toBeNull(),
+    );
+    expect(readied).toHaveLength(0); // BYO branch renders the caller's editor, no internal one
+    byo.destroy();
+  });
+
   it("renders a pre-built editor (BYO) and skips the internal one", async () => {
     const editor = new Editor({ extensions: [ComarkKit], content: "" });
     const { container } = render(
