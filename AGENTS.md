@@ -20,7 +20,7 @@ For design decisions, ambiguity, or vision changes, run a structured Q&A before 
 ## Commands
 
 - **Build:** `pnpm build` (obuild) — emits `dist/index.mjs` (core) + `dist/vue/index.mjs` + `dist/react/index.mjs`, each bundled with `.d.mts`.
-- **Stub (dev):** `pnpm dev:prepare` (or `pnpm stub`) — `obuild --stub` symlinks `dist/*` back to `src`, so playgrounds and `tsgo` resolve the workspace `comark-tiptap` without a full build.
+- **Stub (dev):** `pnpm dev:prepare` — `obuild --stub` symlinks `dist/*` back to `src`, so playgrounds and `tsgo` resolve the workspace `comark-tiptap` without a full build.
 - **Test:** `pnpm test` (vitest). Single file: `pnpm vitest run test/serializer.test.ts`.
 - **Typecheck:** `pnpm typecheck` (`tsgo --noEmit`).
 - **Lint:** `pnpm lint` (`oxlint` type-aware + `oxfmt --check`). **Format:** `pnpm fmt`.

@@ -49,7 +49,6 @@
   },
   "scripts": {
     "build": "obuild",
-    "stub": "obuild --stub",
     "dev": "pnpm -F playground-nuxt dev",
     "dev:vue": "pnpm -F playground-vue dev",
     "dev:react": "pnpm -F playground-react dev",
@@ -129,12 +128,12 @@
     "comark-tiptap": "link:."
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm stub && pnpm lint && pnpm typecheck"
+    "pre-commit": "pnpm build --stub && pnpm lint && pnpm typecheck"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "10.33.1",
+      "version": "11.9.0",
       "onFail": "download"
     },
     "runtime": {

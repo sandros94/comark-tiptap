@@ -2,4 +2,14 @@ packages:
   - ./
   - playground/*
 
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: false
+  simple-git-hooks: true
+  vue-demi: false
+
 ignoreWorkspaceRootCheck: true
+
+minimumReleaseAgeExclude:
+  - "comark-tiptap"
+  - "@typescript/native-preview*"
