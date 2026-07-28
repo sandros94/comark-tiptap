@@ -18,6 +18,23 @@ export type {
   JSONContent,
 };
 
+/** Context handed to a {@link ResolveSrc} resolver alongside each URL. */
+export interface ResolveSrcContext {
+  /** Display attribute the URL came from. */
+  attr: "src" | "srcset";
+  /** Node rendering it. */
+  node: "image" | "picture";
+}
+
+/**
+ * Display-only URL resolver: maps a stored source (e.g. a storage-relative
+ * key) to the URL the editor DOM shows; `undefined` keeps the stored value.
+ * Never runs on parse or serialization — node attrs, AST, and markdown keep
+ * the raw value. `srcset` resolves per candidate URL. Plain `(src) => …`
+ * mappers (e.g. wrapping `@nuxt/image`'s `useImage()`) are assignable.
+ */
+export type ResolveSrc = (src: string, context: ResolveSrcContext) => string | undefined;
+
 /** A ProseMirror mark in JSON form. */
 export interface PMMark {
   type: string;

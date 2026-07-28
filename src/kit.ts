@@ -1,14 +1,16 @@
 import { Extension, type Extensions } from "@tiptap/core";
-import { Image, type ImageOptions } from "@tiptap/extension-image";
 import { TableKit, type TableKitOptions } from "@tiptap/extension-table";
 import { StarterKit, type StarterKitOptions } from "@tiptap/starter-kit";
 import { ComarkAttrs } from "./attrs";
 import { ComarkCodeBlock } from "./extensions/code-block";
 import { ComarkComment } from "./extensions/comment";
 import { type ComarkComponentExports, defineComarkComponent } from "./extensions/component";
+import { ComarkImage, type ComarkImageOptions } from "./extensions/image";
+import { ComarkPicture, type ComarkPictureOptions } from "./extensions/picture";
 import { ComarkTemplate } from "./extensions/template";
 import { ComarkSerializer, type ComarkSerializerOptions } from "./serializer";
 import { comarkSpecs } from "./specs";
+import type { ResolveSrc } from "./types";
 
 export interface ComarkKitOptions {
   /**
@@ -32,10 +34,28 @@ export interface ComarkKitOptions {
   table: Partial<TableKitOptions> | false;
 
   /**
-   * Forwarded to `Image.configure(...)`. Pass `false` to omit images.
+   * Forwarded to `ComarkImage.configure(...)`. Pass `false` to omit images.
    * @default {}
    */
-  image: Partial<ImageOptions> | false;
+  image: Partial<ComarkImageOptions> | false;
+
+  /**
+   * Forwarded to `ComarkPicture.configure(...)`. Pass `false` to omit it;
+   * `picture` AST nodes (sources included) are then dropped, reported via
+   * `serializer.onError`.
+   * @default {}
+   */
+  picture: Partial<ComarkPictureOptions> | false;
+
+  /**
+   * Display-only URL resolver forwarded to {@link ComarkImage} and
+   * {@link ComarkPicture}; a per-extension `resolveSrc` inside
+   * `image`/`picture` overrides it. See {@link ResolveSrc} for semantics.
+   * Note `editor.getHTML()` emits *resolved* URLs (raw values ride in
+   * `data-comark-src(set)`).
+   * @default undefined
+   */
+  resolveSrc: ResolveSrc | undefined;
 
   /**
    * User-defined components from {@link defineComarkComponent}; each entry
@@ -93,6 +113,8 @@ export const ComarkKit = Extension.create<ComarkKitOptions>({
       starterKit: {},
       table: {},
       image: {},
+      picture: {},
+      resolveSrc: undefined,
       components: [],
       serializer: { injectStyles: true, injectNonce: undefined },
       comment: {},
@@ -148,7 +170,21 @@ export const ComarkKit = Extension.create<ComarkKitOptions>({
     }
     if (this.options.image !== false) {
       // Comark images are always inline; pass `inline: false` for block images.
-      exts.push(Image.configure({ inline: true, ...this.options.image }));
+      exts.push(
+        ComarkImage.configure({
+          inline: true,
+          resolveSrc: this.options.resolveSrc,
+          ...this.options.image,
+        }),
+      );
+    }
+    if (this.options.picture !== false) {
+      exts.push(
+        ComarkPicture.configure({
+          resolveSrc: this.options.resolveSrc,
+          ...this.options.picture,
+        }),
+      );
     }
     if (this.options.comment !== false) {
       exts.push(ComarkComment);

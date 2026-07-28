@@ -1,7 +1,8 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
 import type { ComarkElement, JSONContent, NodeSpec } from "../types";
 
-const SEMANTIC_KEYS = ["src", "alt", "title", "width", "height"] as const;
+/* `srcset` is first-class on `ComarkImage` (display resolution), not htmlAttrs. */
+const SEMANTIC_KEYS = ["src", "alt", "title", "srcset", "width", "height"] as const;
 
 /** image ↔ Comark `img`. */
 export const imageSpec: NodeSpec = {
@@ -15,6 +16,7 @@ export const imageSpec: NodeSpec = {
     if (node.attrs?.src != null) semantic.src = node.attrs.src;
     if (node.attrs?.alt != null) semantic.alt = node.attrs.alt;
     if (node.attrs?.title != null) semantic.title = node.attrs.title;
+    if (node.attrs?.srcset != null) semantic.srcset = node.attrs.srcset;
     /* Comark stores numeric attrs as strings (`{width="320"}`); normalise on output so the AST stays stable across DOM round-trips that may coerce them to numbers. */
     if (node.attrs?.width != null) semantic.width = String(node.attrs.width);
     if (node.attrs?.height != null) semantic.height = String(node.attrs.height);
@@ -32,6 +34,7 @@ export const imageSpec: NodeSpec = {
       alt: (semantic.alt as string | null | undefined) ?? null,
       title: (semantic.title as string | null | undefined) ?? null,
     };
+    if (semantic.srcset != null) attrs.srcset = semantic.srcset;
     if (semantic.width != null) attrs.width = semantic.width;
     if (semantic.height != null) attrs.height = semantic.height;
     if (Object.keys(htmlAttrs).length > 0) attrs.htmlAttrs = htmlAttrs;

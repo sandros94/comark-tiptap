@@ -191,6 +191,38 @@ describe("DOM round-trip — image (inline atom)", () => {
     };
     expect(cleanTree(domRoundTrip(tree))).toEqual(cleanTree(tree));
   });
+
+  it("preserves srcset (first-class attr, not htmlAttrs)", () => {
+    const tree: ComarkTree = {
+      nodes: [["p", {}, ["img", { src: "/x.png", srcset: "/x.png 1x, /x-2x.png 2x", alt: "A" }]]],
+      frontmatter: {},
+      meta: {},
+    };
+    expect(cleanTree(domRoundTrip(tree))).toEqual(cleanTree(tree));
+  });
+});
+
+describe("DOM round-trip — picture (inline atom)", () => {
+  it("preserves sources, the inner img, and the tag's own html attrs", () => {
+    const tree: ComarkTree = {
+      nodes: [
+        [
+          "p",
+          {},
+          [
+            "picture",
+            { class: "hero" },
+            ["source", { srcset: "/a.avif 1x, /a-2x.avif 2x", type: "image/avif" }],
+            ["source", { srcset: "/a.webp", type: "image/webp" }],
+            ["img", { src: "/a.jpg", alt: "A", width: "320" }],
+          ],
+        ],
+      ],
+      frontmatter: {},
+      meta: {},
+    };
+    expect(cleanTree(domRoundTrip(tree))).toEqual(cleanTree(tree));
+  });
 });
 
 describe("DOM round-trip — hardBreak", () => {

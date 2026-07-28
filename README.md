@@ -26,7 +26,7 @@ pnpm add react react-dom @tiptap/react
 
 ## Core — `comark-tiptap`
 
-`ComarkKit` is a single `Extension.create` that registers StarterKit + tables + image + the comark-specific nodes (`ComarkComment`, `ComarkTemplate`), the global `htmlAttrs` declaration, and the serializer. The schema is whatever Tiptap upstream ships — no per-extension reimplementations — so it stays drop-in compatible with the rest of the Tiptap ecosystem.
+`ComarkKit` is a single `Extension.create` that registers StarterKit + tables + image + picture + the comark-specific nodes (`ComarkComment`, `ComarkTemplate`), the global `htmlAttrs` declaration, and the serializer. The schema is whatever Tiptap upstream ships — no per-extension reimplementations — so it stays drop-in compatible with the rest of the Tiptap ecosystem.
 
 ```ts
 import { Editor } from "@tiptap/core";
@@ -81,7 +81,9 @@ Object inputs are auto-detected — a `ComarkTree` (anything with a `nodes` arra
 ComarkKit.configure({
   starterKit: { heading: { levels: [1, 2, 3] } }, // forwarded to StarterKit (codeBlock/underline always overridden)
   table: { table: { resizable: true } }, // forwarded to TableKit; false to omit
-  image: { allowBase64: true }, // forwarded to Image (inline mode forced by default)
+  image: { allowBase64: true }, // forwarded to ComarkImage (inline mode forced by default)
+  picture: false, // drop the `<picture>` node (its AST nodes are then dropped, sources included)
+  resolveSrc: (src) => cdnUrl(src), // display-only URL resolver, see below
   comment: false, // drop the `<!-- … -->` node
   template: false, // drop the `::template[name]` node
   components: [Alert], // user components from defineComarkComponent
@@ -90,6 +92,32 @@ ComarkKit.configure({
 ```
 
 Three input shapes are honored throughout — `string` (markdown), `ComarkTree` (AST), `JSONContent` (PM JSON) — and the same three read back out via `getMarkdown()` / `getAst()` / `getJSON()`. `getHTML()` is pure pass-through to Tiptap.
+
+AST nodes whose kit extension is disabled (`picture: false`, `comment: false`, …) are dropped individually on the way in — the rest of the document survives — and each drop is reported through `serializer.onError`.
+
+### Display-only image resolution — `resolveSrc`
+
+CMSs often store image sources as storage-relative keys (`public/products/pump.webp`) and resolve them to CDN URLs only at render time. Verbatim in an editor those keys 404 against the page origin. `resolveSrc` maps stored sources to display URLs without ever touching the stored content:
+
+```ts
+ComarkKit.configure({
+  resolveSrc: (src) => (src.startsWith("public/") ? `https://cdn.example/${src}` : undefined),
+});
+```
+
+- Covers the image node's `src` and `srcset` (each candidate URL, descriptors preserved) and every `<picture>` source. Return `undefined` to leave a value untouched.
+- One-way and display-only: the PM document, the Comark AST, and markdown output always keep the raw stored value. Parse paths (paste, markdown input rule) store whatever they receive.
+- A second `context` argument (`{ attr: 'src' | 'srcset', node: 'image' | 'picture' }`) is available; plain `(src) => …` mappers — e.g. wrapping `@nuxt/image`'s `useImage()` — plug in as-is.
+- The resolver also runs per-extension: `image: { resolveSrc }` / `picture: { resolveSrc }` override the kit-level one.
+
+**`getHTML()` caveat**: display HTML is what Tiptap serializes, so `getHTML()` emits _resolved_ URLs. The raw value rides along in `data-comark-src` / `data-comark-srcset` stash attributes — that's also how internal copy-paste (PM's clipboard serializes the display DOM) recovers raw values instead of baking CDN URLs into the document. Store the AST, not HTML.
+
+### Pictures
+
+`<picture>` elements round-trip losslessly through the editor as an opaque inline atom: sources and the inner img are preserved verbatim in `attrs` (selectable/deletable/draggable, not editable from within), and `resolveSrc` applies to their display. Block-level pictures come back paragraph-wrapped — same normalization as bare `<img>` elements.
+
+> [!WARNING]
+> _Markdown_ output of pictures is not yet reliable upstream: comark 0.5.0 renders `$`-less elements as directives (whose inline form doesn't reparse) and splits raw-HTML children with blank lines. AST round-trips are unaffected — store the AST for documents containing pictures.
 
 ## Vue — `comark-tiptap/vue`
 

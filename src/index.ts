@@ -12,6 +12,8 @@ export type {
   MarkSpec,
   NodeSpec,
   PMMark,
+  ResolveSrc,
+  ResolveSrcContext,
   SetterContext,
   SetterInput,
 } from "./types";
@@ -38,6 +40,8 @@ export {
 // Comark-specific Tiptap extensions
 export { ComarkCodeBlock } from "./extensions/code-block";
 export { ComarkComment } from "./extensions/comment";
+export { ComarkImage, type ComarkImageOptions } from "./extensions/image";
+export { ComarkPicture, type ComarkPictureOptions } from "./extensions/picture";
 export { ComarkTemplate } from "./extensions/template";
 export {
   defineComarkComponent,
@@ -70,6 +74,7 @@ export {
   listItemSpec,
   orderedListSpec,
   paragraphSpec,
+  pictureSpec,
   strikeSpec,
   tableCellSpec,
   tableHeaderSpec,
@@ -81,4 +86,5 @@ export {
 // Utilities
 export { attrsEqual, cleanAttrs, hasNoHtmlAttrs, mergeAttrs, splitAttrs } from "./utils/attrs";
 export { autoUnwrapBlocks } from "./utils/auto-unwrap";
-export { htmlAttrSpec, type HtmlAttrSpecOptions } from "./utils/html-attrs";
+export { collectDomAttrs, htmlAttrSpec, type HtmlAttrSpecOptions } from "./utils/html-attrs";
+export { parseSrcset, resolveSrcset, type SrcsetCandidate } from "./utils/srcset";

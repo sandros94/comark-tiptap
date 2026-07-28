@@ -41,15 +41,15 @@ Each framework binding imports the core **by package name** (`comark-tiptap`, se
 ```
 src/
   index.ts              # core barrel
-  kit.ts                # ComarkKit — assembles StarterKit + tables + image + comark nodes + serializer
+  kit.ts                # ComarkKit — assembles StarterKit + tables + image + picture + comark nodes + serializer
   serializer.ts         # ComarkSerializer extension + createSerializer (pure dispatcher) + PM↔Comark commands
   content.ts            # @internal content-routing helpers shared by the bindings (applyContent/readByFlavor/isComarkTreeLike/safeJson)
   attrs.ts              # ComarkAttrs — global `htmlAttrs` bag via addGlobalAttributes
   style.ts              # operational stylesheet (comment/template/component markers)
   types.ts              # NodeSpec / MarkSpec / ComarkHelpers + re-exported comark types
-  extensions/           # comark-specific Tiptap nodes: code-block, comment, template, component (factory)
+  extensions/           # comark-specific Tiptap nodes: code-block, comment, template, image (resolveSrc), picture, component (factory)
   specs/                # per-node/mark serialization specs (paragraph, heading, lists, table, marks, …) + comarkSpecs aggregate
-  utils/                # attrs (split/merge/clean), auto-unwrap, html-attrs
+  utils/                # attrs (split/merge/clean), auto-unwrap, html-attrs, srcset (candidate parsing), resolve-src (display URL + raw stash)
   vue/
     index.ts            # vue barrel
     comark-editor.ts    # <ComarkEditor> as a `defineComponent` (see "Build" below)
@@ -76,6 +76,9 @@ The identical content-dispatch/read logic each binding needs (`applyContent`, `r
 - **Async markdown seed.** `comark.parse` is async-only — string seeds apply one microtask late. Object paths stay sync. This diverges from `@tiptap/markdown` (sync). See `test/markdown-seed.test.ts`.
 - **List autoUnwrap mirrors Comark.** `listItemSpec.toComark` uses `autoUnwrapBlocks`: a single attrless paragraph flattens to inlines; a paragraph followed by a nested list keeps its wrapper (`['li',{},['p',{},'a'],['ul',…]]`). This matches comark's canonical form (verified on 0.5.0).
 - **Inline mark nesting is reconstructed, not per-run.** PM stores marks flat on each text run; `serializeInlines` (serializer.ts) rebuilds Comark nesting by grouping consecutive runs that share an outer mark into ONE element (`**a _b_ c**` → `['strong',{},'a ',['em',{},'b'],' c']`, not three `strong`s — the naive per-run wrap loses edge whitespace and splits a link into several). Two rules: (1) coalesce adjacent runs whose mark at a given depth is identical (type + attrs; differing `htmlAttrs` stay separate); (2) force the `code` mark **innermost** regardless of PM's mark order — inline code is literal in markdown, so a mark nested inside `code` (`['code',{},['em',…]]`) is dropped on render. `MarkSpec.toComark(mark, children)` takes an array so one wrapper can hold many children. Pinned by `test/serializer.test.ts` + `test/markdown-output.test.ts`.
+- **`resolveSrc` is display-only, hooked at attribute-level `renderHTML`.** `ComarkImage` (extends stock Image, keeps the `image` name) and `ComarkPicture` map `src`/`srcset` through the kit-level `resolveSrc` in the attrs' `renderHTML` — one seam covering plain rendering AND the resize node view (`@tiptap/core` feeds node views `getRenderedAttributes(...)`). Stored attrs / AST / markdown stay raw. When the resolver changes a value, the raw one rides in `data-comark-src(set)` and parse prefers the stash — otherwise PM's clipboard (which serializes the display DOM) would bake resolved URLs into the document on internal copy-paste.
+- **Picture is an opaque INLINE atom.** comark emits `<picture>` both block-level and inside text runs; a PM node has one group, and a block group would make in-paragraph pictures fail schema validation — inline survives both (block-level pictures come back paragraph-wrapped, like bare imgs). Sources + inner img are verbatim attr bags; `pictureSpec` normalizes child order to sources-then-img.
+- **Disabled-extension AST nodes are pruned individually.** Serializer specs are registered unconditionally, so `picture: false` / `comment: false` yield PM JSON with schema-unknown types; `pruneUnknownTypes` (serializer.ts) drops just those nodes/marks before `setContent` (reported via `onError`). Without it, Tiptap's content check resets the WHOLE document on the first unknown type.
 - **Link `target`/`rel` aren't auto-injected.** The kit nulls the bundled Link extension's default `target`/`rel` HTMLAttributes (kit.ts), so a plain `[x](/y)` round-trips clean instead of gaining `{target rel}`; explicit values from the markdown still ride on the link mark.
 - **Cell alignment bridges `style:text-align` ↔ native `align`.** comark expresses table alignment as `style:"text-align:X"`, its renderer ignores a bare `align` attr, and Tiptap's TableCell renders `align` back as that style. The cell spec reads either form into PM's native `align` and serializes it back as `style:text-align`; `style` is reserved on cells (attrs.ts) so a DOM round-trip doesn't double-represent it.
 
@@ -107,5 +110,6 @@ The identical content-dispatch/read logic each binding needs (`applyContent`, `r
 
 - **comark version.** Peer + dev are pinned to `comark@^0.5.0` (the tested round-trips run against 0.5.0). The parse AST surface is unchanged from 0.3.x (`[tag, attrs, …children]`, heading auto-`id`, `del`, string `start`, `style:"text-align:X"` on cells); 0.5.0's only relevant render change vs 0.3.2 is that ordered-list `start` is now emitted. Bumping again needs a serializer review + full round-trip re-verification before it lands.
 - **`SetContentOptions`** is still defined per-binding (each extends core's `SetComarkContentOptions` with `contentType`); minor, could be lifted to core too.
+- **Picture markdown output is upstream-broken (comark 0.5.0).** Two renderer issues: `$`-less elements render as directives (`::picture`) whose _inline_ form (`:picture[…]`) doesn't reparse; and raw-HTML children are split with blank lines, so even comark's own parse→render→parse of `<picture>` HTML loses the img. AST round-trips are unaffected (documented in README). Re-check when bumping comark.
 - **Streaming auto-close is off.** All `parse()` calls pass `{ autoClose: false }` (serializer.ts `PARSE_OPTIONS`). comark's default closes dangling markers (a lone `*`/`~`/`$name`) — right for streaming, wrong for the complete docs the editor parses (it corrupts literal text; see comarkdown/comark#136). Do not re-enable it for whole-document parsing.
 - **BYO-editor timing is keyed off prop PRESENCE.** `<ComarkEditor editor={…}>` selects BYO vs managed by whether the `editor` prop is provided (React `"editor" in props`; Vue `"editor" in vnode.props`), NOT its current value — so `:editor`/`editor={hook.editor}` that resolves a tick after mount stays in the BYO branch (rendering the `fallback`) instead of spinning a throwaway internal editor. Pass the prop (even as an undefined ref) to opt into BYO; omit it for managed mode. Don't reintroduce a truthiness check.

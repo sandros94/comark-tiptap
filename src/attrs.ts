@@ -20,6 +20,8 @@ const TYPES_NO_RESERVED = [
   "strike",
   // Comark-specific
   "comarkComment",
+  // Picture's native attrs (sources/img) come from child elements, not DOM attrs of <picture>.
+  "picture",
 ] as const;
 
 /*
@@ -37,8 +39,8 @@ const RESERVED_BY_TYPE: ReadonlyArray<readonly [readonly string[], readonly stri
    * `class` on the outer `<pre>` still flows through htmlAttrs.
    */
   [["codeBlock"], ["language"]],
-  // Image native attrs: src/alt/title/width/height.
-  [["image"], ["src", "alt", "title", "width", "height"]],
+  // Image native attrs: src/alt/title/srcset/width/height.
+  [["image"], ["src", "alt", "title", "srcset", "width", "height"]],
   /*
    * Cell/header native attrs: colspan/rowspan/colwidth/align. `style` is
    * reserved too: TableCell renders `align` as `style:"text-align:X"`, so a DOM

@@ -26,6 +26,20 @@ function isInternalAttr(name: string): boolean {
   return false;
 }
 
+/** All non-internal DOM attributes of `el`, minus `reserved` keys. */
+export function collectDomAttrs(
+  el: HTMLElement,
+  reserved?: ReadonlySet<string>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const attr of Array.from(el.attributes)) {
+    if (reserved?.has(attr.name)) continue;
+    if (isInternalAttr(attr.name)) continue;
+    out[attr.name] = attr.value;
+  }
+  return out;
+}
+
 /** Options for {@link htmlAttrSpec}. */
 export interface HtmlAttrSpecOptions {
   /**
@@ -58,12 +72,7 @@ export function htmlAttrSpec(options: HtmlAttrSpecOptions = {}): Attributes {
        */
       default: {} as Record<string, unknown>,
       parseHTML: (el: HTMLElement) => {
-        const out: Record<string, string> = {};
-        for (const attr of Array.from(el.attributes)) {
-          if (reserved.has(attr.name)) continue;
-          if (isInternalAttr(attr.name)) continue;
-          out[attr.name] = attr.value;
-        }
+        const out = collectDomAttrs(el, reserved);
         return Object.keys(out).length > 0 ? out : null;
       },
       renderHTML: (attrs: { htmlAttrs?: Record<string, unknown> | null }) => {

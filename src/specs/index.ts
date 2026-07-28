@@ -8,6 +8,7 @@ import { imageSpec } from "./image";
 import { bulletListSpec, listItemSpec, orderedListSpec } from "./lists";
 import { boldSpec, codeSpec, italicSpec, linkSpec, strikeSpec } from "./marks";
 import { paragraphSpec } from "./paragraph";
+import { pictureSpec } from "./picture";
 import { tableCellSpec, tableHeaderSpec, tableRowSpec, tableSpec } from "./table";
 import { templateSpec } from "./template";
 import type { MarkSpec, NodeSpec } from "../types";
@@ -28,6 +29,7 @@ export {
   listItemSpec,
   orderedListSpec,
   paragraphSpec,
+  pictureSpec,
   strikeSpec,
   tableCellSpec,
   tableHeaderSpec,
@@ -48,6 +50,7 @@ export const comarkSpecs: { nodes: NodeSpec[]; marks: MarkSpec[] } = {
     codeBlockSpec,
     horizontalRuleSpec,
     imageSpec,
+    pictureSpec,
     tableSpec,
     tableRowSpec,
     tableHeaderSpec,
