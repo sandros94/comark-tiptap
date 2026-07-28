@@ -5,6 +5,7 @@ import {
   type Editor,
   type JSONContent,
 } from "@tiptap/core";
+import type { Schema } from "@tiptap/pm/model";
 import { parse } from "comark";
 import { renderMarkdown } from "comark/render";
 import { isComarkTreeLike } from "./content";
@@ -654,7 +655,12 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           }
           this.storage.frontmatter = { ...tree.frontmatter };
           this.storage.meta = { ...tree.meta };
-          const doc = comarkToPmDoc(tree, this.storage.helpers);
+          const doc = pruneDoc(
+            comarkToPmDoc(tree, this.storage.helpers),
+            this.editor.schema,
+            this.options.onError,
+            "setComarkAst",
+          );
           return commands.setContent(doc, {
             emitUpdate: options?.emitUpdate ?? true,
             errorOnInvalidContent: options?.errorOnInvalidContent,
@@ -688,7 +694,12 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         if (isComarkTreeLike(content)) {
           this.storage.frontmatter = { ...content.frontmatter };
           this.storage.meta = { ...content.meta };
-          const doc = comarkToPmDoc(content, this.storage.helpers);
+          const doc = pruneDoc(
+            comarkToPmDoc(content, this.storage.helpers),
+            props.editor.schema,
+            this.options.onError,
+            "setContent",
+          );
           return baseSetContent(doc as unknown as Content, options)(props);
         }
         if (typeof content !== "string" || content === "" || options?.contentType === "html") {
@@ -717,7 +728,14 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
 
       insertContent: (value, options) => (props) => {
         if (isComarkTreeLike(value)) {
-          const payload = comarkTreeToInsertPayload(value, this.storage.helpers, options?.inline);
+          const payload = comarkTreeToInsertPayload(
+            value,
+            this.storage.helpers,
+            options?.inline,
+            props.editor.schema,
+            this.options.onError,
+            "insertContent",
+          );
           return baseInsertContent(payload, options)(props);
         }
         if (typeof value !== "string" || value === "" || options?.contentType === "html") {
@@ -731,7 +749,14 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         parse(value, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
-            const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline);
+            const payload = comarkTreeToInsertPayload(
+              tree,
+              this.storage.helpers,
+              options?.inline,
+              props.editor.schema,
+              this.options.onError,
+              "insertContent",
+            );
             props.editor.commands.insertContent(payload, options);
           })
           .catch((err) => {
@@ -742,7 +767,14 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
 
       insertContentAt: (position, value, options) => (props) => {
         if (isComarkTreeLike(value)) {
-          const payload = comarkTreeToInsertPayload(value, this.storage.helpers, options?.inline);
+          const payload = comarkTreeToInsertPayload(
+            value,
+            this.storage.helpers,
+            options?.inline,
+            props.editor.schema,
+            this.options.onError,
+            "insertContentAt",
+          );
           return baseInsertContentAt(position, payload, options)(props);
         }
         if (typeof value !== "string" || value === "" || options?.contentType === "html") {
@@ -756,7 +788,14 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         parse(value, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
-            const payload = comarkTreeToInsertPayload(tree, this.storage.helpers, options?.inline);
+            const payload = comarkTreeToInsertPayload(
+              tree,
+              this.storage.helpers,
+              options?.inline,
+              props.editor.schema,
+              this.options.onError,
+              "insertContentAt",
+            );
             props.editor.commands.insertContentAt(position, payload, options);
           })
           .catch((err) => {
@@ -783,15 +822,62 @@ function safeJsonParse(
   }
 }
 
+/**
+ * Drop nodes/marks whose type is missing from the schema — extensions the
+ * consumer disabled (`picture: false`, `comment: false`) while their specs
+ * stay registered. Without this, one unknown type makes Tiptap's content
+ * check reset the WHOLE document. Each drop is reported through `onError`.
+ */
+function pruneUnknownTypes(
+  json: JSONContent,
+  schema: Schema,
+  onError: ComarkErrorHandler | undefined,
+  phase: ComarkErrorContext["phase"],
+): JSONContent | null {
+  if (json.type && json.type !== TEXT_PM_NAME && !schema.nodes[json.type]) {
+    reportError(onError, new Error(`dropped AST node for disabled type "${json.type}"`), {
+      phase,
+    });
+    return null;
+  }
+  const out: JSONContent = { ...json };
+  if (out.marks) {
+    out.marks = out.marks.filter((m) => {
+      if (schema.marks[m.type]) return true;
+      reportError(onError, new Error(`dropped mark for disabled type "${m.type}"`), { phase });
+      return false;
+    });
+  }
+  if (out.content) {
+    out.content = out.content
+      .map((c) => pruneUnknownTypes(c, schema, onError, phase))
+      .filter((c): c is JSONContent => c !== null);
+  }
+  return out;
+}
+
+/** {@link pruneUnknownTypes} for a whole doc: the root itself never drops. */
+function pruneDoc(
+  doc: JSONContent,
+  schema: Schema,
+  onError: ComarkErrorHandler | undefined,
+  phase: ComarkErrorContext["phase"],
+): JSONContent {
+  return pruneUnknownTypes(doc, schema, onError, phase) ?? { type: DOC_PM_NAME };
+}
+
 /* ComarkTree → the payload insertContent / insertContentAt want: the doc's block
    content array, or its inline-flattened form when inline is true. PM's insert*
    commands take a slice of nodes, not a doc node. */
 function comarkTreeToInsertPayload(
   tree: ComarkTree,
   helpers: ComarkHelpers,
-  inline?: boolean,
+  inline: boolean | undefined,
+  schema: Schema,
+  onError: ComarkErrorHandler | undefined,
+  phase: ComarkErrorContext["phase"],
 ): Content {
-  const doc = comarkToPmDoc(tree, helpers);
+  const doc = pruneDoc(comarkToPmDoc(tree, helpers), schema, onError, phase);
   return inline ? (extractInlines(doc) as Content) : ((doc.content ?? []) as Content);
 }
 
