@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer } from "../../src/serializer";
-import type { ComarkElement, ComarkHelpers } from "../../src/types";
+import type { ElementNode, ComarkHelpers } from "../../src/types";
 import { paragraphSpec } from "../../src/specs/paragraph";
 
 function makeHelpers(): ComarkHelpers {
@@ -42,7 +42,7 @@ describe("paragraphSpec.toComark", () => {
 describe("paragraphSpec.fromComark", () => {
   it("converts a Comark `p` to a PM paragraph", () => {
     const h = makeHelpers();
-    const result = paragraphSpec.fromComark(["p", {}, "hello"] as ComarkElement, h);
+    const result = paragraphSpec.fromComark(["p", {}, "hello"] as ElementNode, h);
     expect(result).toEqual({
       type: "paragraph",
       content: [{ type: "text", text: "hello" }],
@@ -52,7 +52,7 @@ describe("paragraphSpec.fromComark", () => {
   it("routes element attributes into `htmlAttrs`", () => {
     const h = makeHelpers();
     const result = paragraphSpec.fromComark(
-      ["p", { class: "lead", id: "intro" }, "x"] as ComarkElement,
+      ["p", { class: "lead", id: "intro" }, "x"] as ElementNode,
       h,
     );
     expect(result).toEqual({
@@ -65,7 +65,7 @@ describe("paragraphSpec.fromComark", () => {
   it("drops Comark `$` source-position metadata", () => {
     const h = makeHelpers();
     const result = paragraphSpec.fromComark(
-      ["p", { class: "a", $: { line: 4 } }, "x"] as ComarkElement,
+      ["p", { class: "a", $: { line: 4 } }, "x"] as ElementNode,
       h,
     );
     expect(result?.attrs).toEqual({ htmlAttrs: { class: "a" } });
@@ -73,7 +73,7 @@ describe("paragraphSpec.fromComark", () => {
 
   it("omits `attrs` entirely when there are no html attrs", () => {
     const h = makeHelpers();
-    const result = paragraphSpec.fromComark(["p", {}, "x"] as ComarkElement, h);
+    const result = paragraphSpec.fromComark(["p", {}, "x"] as ElementNode, h);
     expect(result).not.toHaveProperty("attrs");
   });
 });
@@ -81,7 +81,7 @@ describe("paragraphSpec.fromComark", () => {
 describe("paragraph round-trip", () => {
   it("Comark → PM → Comark is identity for a paragraph with attrs", () => {
     const h = makeHelpers();
-    const original: ComarkElement = ["p", { "class": "lead", "data-x": "y" }, "hello"];
+    const original: ElementNode = ["p", { "class": "lead", "data-x": "y" }, "hello"];
     const pm = paragraphSpec.fromComark(original, h)!;
     const back = paragraphSpec.toComark(pm, h);
     expect(back).toEqual(original);

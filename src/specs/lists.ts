@@ -1,6 +1,6 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
 import { autoUnwrapBlocks } from "../utils/auto-unwrap";
-import type { ComarkElement, ComarkHelpers, JSONContent, NodeSpec } from "../types";
+import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
 /* A fresh minimal `listItem` for a would-be-empty list — PM's list schema is
    `listItem+`, so a childless `ul`/`ol` (e.g. `- \n` → `['ul',{}]`) is invalid
@@ -17,7 +17,7 @@ export const listItemSpec: NodeSpec = {
   pmName: "listItem",
   tags: ["li"],
 
-  toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+  toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const attrs = mergeAttrs(
       {},
       (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
@@ -31,7 +31,7 @@ export const listItemSpec: NodeSpec = {
     return ["li", attrs, ...autoUnwrapBlocks(node.content, h)];
   },
 
-  fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...children] = el;
     const { htmlAttrs } = splitAttrs(rawAttrs, []);
 
@@ -51,7 +51,7 @@ export const bulletListSpec: NodeSpec = {
   pmName: "bulletList",
   tags: ["ul"],
 
-  toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+  toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const attrs = mergeAttrs(
       {},
       (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
@@ -59,7 +59,7 @@ export const bulletListSpec: NodeSpec = {
     return ["ul", attrs, ...h.serializeBlocks(node.content)];
   },
 
-  fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...children] = el;
     const { htmlAttrs } = splitAttrs(rawAttrs, []);
     const items = h.parseBlocks(children).filter((c) => c.type === "listItem");
@@ -81,7 +81,7 @@ export const orderedListSpec: NodeSpec = {
   pmName: "orderedList",
   tags: ["ol"],
 
-  toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+  toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const semantic: Record<string, unknown> = {};
     /* Comark stores `start` as a string ("5") for round-trip stability; mirror that on output. */
     const startRaw = node.attrs?.start;
@@ -95,7 +95,7 @@ export const orderedListSpec: NodeSpec = {
     return ["ol", attrs, ...h.serializeBlocks(node.content)];
   },
 
-  fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...children] = el;
     const { semantic, htmlAttrs } = splitAttrs(rawAttrs, ORDERED_LIST_SEMANTIC);
     const attrs: Record<string, unknown> = {};

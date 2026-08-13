@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ComarkEditor, defineComarkReactComponent } from 'comark-tiptap/react'
-import type { ComarkTree, JSONContent } from 'comark-tiptap'
+import type { MarkdownDocument, JSONContent } from 'comark-tiptap'
 import type { Editor } from '@tiptap/react'
 
 /*
@@ -30,7 +30,7 @@ const Badge = defineComarkReactComponent({
 
 export default function App(): ReactNode {
   const [md, setMd] = useState(SEED)
-  const [ast, setAst] = useState<ComarkTree | null>(null)
+  const [ast, setAst] = useState<MarkdownDocument | null>(null)
   const [json, setJson] = useState<JSONContent | null>(null)
 
   const sync = (editor: Editor): void => {

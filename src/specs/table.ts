@@ -1,5 +1,5 @@
 import { hasNoHtmlAttrs, mergeAttrs, splitAttrs } from "../utils/attrs";
-import type { ComarkElement, ComarkHelpers, ComarkNode, JSONContent, NodeSpec } from "../types";
+import type { ElementNode, ComarkHelpers, Node, JSONContent, NodeSpec } from "../types";
 
 // #region table
 
@@ -8,7 +8,7 @@ export const tableSpec: NodeSpec = {
   pmName: "table",
   tags: ["table"],
 
-  toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+  toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const attrs = mergeAttrs(
       {},
       (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
@@ -25,10 +25,10 @@ export const tableSpec: NodeSpec = {
     let split = 0;
     while (split < rows.length && isAllHeaders(rows[split]!)) split++;
 
-    const serializeRows = (src: JSONContent[]): ComarkElement[] => {
-      const out: ComarkElement[] = [];
+    const serializeRows = (src: JSONContent[]): ElementNode[] => {
+      const out: ElementNode[] = [];
       for (const row of src) {
-        const el = h.serializeBlocks([row])[0] as ComarkElement | undefined;
+        const el = h.serializeBlocks([row])[0] as ElementNode | undefined;
         if (el) out.push(el);
       }
       return out;
@@ -36,13 +36,13 @@ export const tableSpec: NodeSpec = {
     const headerRows = serializeRows(rows.slice(0, split));
     const bodyRows = serializeRows(rows.slice(split));
 
-    const children: ComarkNode[] = [];
+    const children: Node[] = [];
     if (headerRows.length > 0) children.push(["thead", {}, ...headerRows]);
     if (bodyRows.length > 0) children.push(["tbody", {}, ...bodyRows]);
     return ["table", attrs, ...children];
   },
 
-  fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...children] = el;
     const { htmlAttrs } = splitAttrs(rawAttrs, []);
 
@@ -52,7 +52,7 @@ export const tableSpec: NodeSpec = {
       if (!Array.isArray(child) || child[0] === null) continue;
       const tag = child[0] as string;
       if (tag === "thead" || tag === "tbody") {
-        for (const row of child.slice(2) as ComarkNode[]) {
+        for (const row of child.slice(2) as Node[]) {
           if (Array.isArray(row) && row[0] === "tr") {
             const json = h.parseBlocks([row])[0];
             if (json) rows.push(json);
@@ -90,7 +90,7 @@ export const tableRowSpec: NodeSpec = {
   pmName: "tableRow",
   tags: ["tr"],
 
-  toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+  toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const attrs = mergeAttrs(
       {},
       (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
@@ -98,7 +98,7 @@ export const tableRowSpec: NodeSpec = {
     return ["tr", attrs, ...h.serializeBlocks(node.content)];
   },
 
-  fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...cells] = el;
     const { htmlAttrs } = splitAttrs(rawAttrs, []);
     const content = cells
@@ -147,7 +147,7 @@ function makeCellSpec(pmName: "tableHeader" | "tableCell", tag: "th" | "td"): No
   return {
     pmName,
     tags: [tag],
-    toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+    toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
       const semantic: Record<string, unknown> = {};
       const colspan = node.attrs?.colspan;
       const rowspan = node.attrs?.rowspan;
@@ -174,7 +174,7 @@ function makeCellSpec(pmName: "tableHeader" | "tableCell", tag: "th" | "td"): No
       return [tag, attrs, ...h.serializeBlocks(content)];
     },
 
-    fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+    fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
       const [, rawAttrs, ...children] = el;
       const { semantic, htmlAttrs } = splitAttrs(rawAttrs, CELL_SEMANTIC);
 

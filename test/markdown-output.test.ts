@@ -63,10 +63,27 @@ describe("markdown output — inline mark nesting (regression pins)", () => {
     ["adjacent separate marks stay readable", "a **b** **c** d\n", "a **b** **c** d"],
     // Streaming auto-close is off (PARSE_OPTIONS) — a dangling marker in a
     // COMPLETE document must stay literal, not gain a closing character.
-    ["a lone `*` stays literal (no auto-close)", "a * b\n", "a * b"],
-    ["a lone `~` stays literal (no auto-close)", "use ~ tilde\n", "use ~ tilde"],
+    // Since comark 0.6 the renderer escapes it; the escaped form reparses
+    // to the same AST (pinned by the escaping-idempotency suite below).
+    ["a lone `*` stays literal (no auto-close)", "a * b\n", String.raw`a \* b`],
+    ["a lone `~` stays literal (no auto-close)", "use ~ tilde\n", String.raw`use \~ tilde`],
   ])("%s", async (_label, input, expected) => {
     expect(norm(await roundTrip(input))).toBe(expected);
+  });
+});
+
+describe("markdown output — escaping idempotency", () => {
+  // comark 0.6 escapes literal `*` / `~` / backticks on render. The escaped
+  // markdown must reparse to the SAME text (and re-render identically), or
+  // every open→save cycle would grow another layer of backslashes.
+  it.each<[string, string]>([
+    ["lone asterisk", "a * b\n"],
+    ["lone tilde", "use ~ tilde\n"],
+    ["literal backticks", "run `ls` now\n"],
+  ])("%s survives a second markdown round-trip", async (_label, input) => {
+    const once = await roundTrip(input);
+    const twice = await roundTrip(once);
+    expect(norm(twice)).toBe(norm(once));
   });
 });
 
@@ -94,6 +111,24 @@ describe("markdown output — block nodes (upstream-drift pins)", () => {
   it("renders a heading and paragraph", async () => {
     const out = norm(await roundTrip("# Title\n\nBody text.\n"));
     expect(out).toBe("# Title\n\nBody text.");
+  });
+
+  // Pictures render as the `picture` directive since comark 0.6 and round-trip
+  // through markdown (inline form exactly; block form re-absorbed by pictureSpec).
+  it("round-trips an inline picture through markdown", async () => {
+    const src = "before :picture[![A](/a.png)] after\n";
+    const out = norm(await roundTrip(src));
+    expect(out).toBe("before :picture[![A](/a.png)] after");
+  });
+
+  it("round-trips a block picture (sources + img) through markdown", async () => {
+    const src =
+      '::picture\n  :::source{srcset="/a.webp" type="image/webp"}\n  :::\n\n![A](/a.png)\n::\n';
+    const once = norm(await roundTrip(src));
+    expect(once).toContain(':::source{srcset="/a.webp" type="image/webp"}');
+    expect(once).toContain("![A](/a.png)");
+    // Second cycle is stable — the p-wrapper the reparse introduces doesn't accrete.
+    expect(norm(await roundTrip(once))).toBe(once);
   });
 
   it("renders a block component with declared props", async () => {

@@ -1,10 +1,10 @@
-import { parse } from "comark";
+import { parseMarkdown } from "comark";
 import { renderMarkdown } from "comark/render";
 import { describe, expect, it } from "vitest";
 import { defineComarkComponent } from "../src/extensions/component";
 import { comarkToPmDoc, createSerializer, pmDocToComark } from "../src/serializer";
 import { comarkSpecs } from "../src/specs";
-import type { ComarkNode, ComarkTree } from "../src/types";
+import type { Node, MarkdownDocument } from "../src/types";
 
 const baseHelpers = createSerializer(comarkSpecs);
 
@@ -12,7 +12,7 @@ const baseHelpers = createSerializer(comarkSpecs);
  * Strip Comark's `$` source-position bag so the equality check focuses
  * on meaningful structure.
  */
-function cleanTree(tree: ComarkTree): ComarkTree {
+function cleanTree(tree: MarkdownDocument): MarkdownDocument {
   return {
     nodes: tree.nodes.map(cleanNode),
     frontmatter: { ...tree.frontmatter },
@@ -20,7 +20,7 @@ function cleanTree(tree: ComarkTree): ComarkTree {
   };
 }
 
-function cleanNode(node: ComarkNode): ComarkNode {
+function cleanNode(node: Node): Node {
   if (typeof node === "string") return node;
   if (!Array.isArray(node)) return node;
   const [tag, attrs, ...children] = node;
@@ -29,15 +29,11 @@ function cleanNode(node: ComarkNode): ComarkNode {
     if (k === "$") continue;
     cleanAttrs[k] = v;
   }
-  return [
-    tag,
-    cleanAttrs,
-    ...children.map((c) => cleanNode(c as ComarkNode)),
-  ] as unknown as ComarkNode;
+  return [tag, cleanAttrs, ...children.map((c) => cleanNode(c as Node))] as unknown as Node;
 }
 
-async function rt(md: string, helpers = baseHelpers): Promise<ComarkTree> {
-  const tree = await parse(md);
+async function rt(md: string, helpers = baseHelpers): Promise<MarkdownDocument> {
+  const tree = await parseMarkdown(md);
   const pm = comarkToPmDoc(tree, helpers);
   return pmDocToComark(pm, helpers);
 }
@@ -64,14 +60,14 @@ describe("full-document round-trip", () => {
     ["table", "| A | B |\n| - | - |\n| 1 | 2 |\n"],
     ["table with alignment", "| Left | Mid | Right |\n| :--- | :-: | ---: |\n| a | b | c |\n"],
   ])("round-trips: %s", async (_label, md) => {
-    const a = cleanTree(await parse(md));
+    const a = cleanTree(await parseMarkdown(md));
     const b = cleanTree(await rt(md));
     expect(b.nodes).toEqual(a.nodes);
   });
 
   it("round-trips bold-with-attribute losslessly without a comarkExtras carrier", async () => {
     const md = "A **bold**{.foo #b1} word.\n";
-    const a = cleanTree(await parse(md));
+    const a = cleanTree(await parseMarkdown(md));
     const b = cleanTree(await rt(md));
     // The class and id ride on the bold mark schema, not on a sidecar.
     expect(b.nodes).toEqual(a.nodes);
@@ -79,7 +75,7 @@ describe("full-document round-trip", () => {
 
   it("round-trips a markdown comment through the comment node", async () => {
     const md = "<!-- TODO -->\n\nAfter\n";
-    const a = cleanTree(await parse(md));
+    const a = cleanTree(await parseMarkdown(md));
     const b = cleanTree(await rt(md));
     expect(b.nodes).toEqual(a.nodes);
   });
@@ -91,8 +87,8 @@ describe("full-document round-trip", () => {
     const md = "# Hello\n\nA **B** [link](/x).\n";
     const tree = await rt(md);
     const out = await renderMarkdown(tree);
-    const reparsed = cleanTree(await parse(out));
-    const original = cleanTree(await parse(md));
+    const reparsed = cleanTree(await parseMarkdown(out));
+    const original = cleanTree(await parseMarkdown(md));
     expect(reparsed.nodes).toEqual(original.nodes);
   });
 });
@@ -113,8 +109,8 @@ describe("full-document round-trip with custom components", () => {
 
   it("preserves an alert with both schema-typed props and HTML extras", async () => {
     const md = '::alert{type="warning" title="Heads up" .ring}\nBody **bold** here.\n::\n';
-    const a = cleanTree(await parse(md));
-    const tree = await parse(md);
+    const a = cleanTree(await parseMarkdown(md));
+    const tree = await parseMarkdown(md);
     const pm = comarkToPmDoc(tree, helpers);
     const back = cleanTree(pmDocToComark(pm, helpers));
     expect(back.nodes).toEqual(a.nodes);
@@ -132,8 +128,8 @@ describe("full-document round-trip with custom components", () => {
     });
 
     const md = 'Status: :badge[New]{color="green"}.\n';
-    const a = cleanTree(await parse(md));
-    const tree = await parse(md);
+    const a = cleanTree(await parseMarkdown(md));
+    const tree = await parseMarkdown(md);
     const pm = comarkToPmDoc(tree, h);
     const back = cleanTree(pmDocToComark(pm, h));
     expect(back.nodes).toEqual(a.nodes);

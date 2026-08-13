@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer } from "../../src/serializer";
 import { paragraphSpec } from "../../src/specs/paragraph";
-import type { ComarkElement } from "../../src/types";
+import type { ElementNode } from "../../src/types";
 import { defineComarkComponent } from "../../src/extensions/component";
 
 describe("defineComarkComponent — block component", () => {
@@ -26,7 +26,7 @@ describe("defineComarkComponent — block component", () => {
         "alert",
         { "type": "warning", "title": "Heads up", ":dismissible": "true", ":count": "3" },
         ["p", {}, "Hi"],
-      ] as ComarkElement,
+      ] as ElementNode,
       helpers,
     );
     expect(result?.attrs).toMatchObject({
@@ -43,7 +43,7 @@ describe("defineComarkComponent — block component", () => {
         "alert",
         { "type": "info", "class": "lead", "data-foo": "bar" },
         ["p", {}, "Hi"],
-      ] as ComarkElement,
+      ] as ElementNode,
       helpers,
     );
     expect(result?.attrs).toMatchObject({
@@ -55,7 +55,7 @@ describe("defineComarkComponent — block component", () => {
   it("round-trips a fully-loaded alert (autoUnwrapped on output)", () => {
     // Block components autoUnwrap a single attrless paragraph child, so
     // the round-trip output uses the canonical Comark form.
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "alert",
       {
         "type": "warning",
@@ -72,21 +72,21 @@ describe("defineComarkComponent — block component", () => {
   });
 
   it("also accepts the wrapped form on input and emits the autoUnwrapped form", () => {
-    const wrapped: ComarkElement = ["alert", { type: "info" }, ["p", {}, "Body"]];
+    const wrapped: ElementNode = ["alert", { type: "info" }, ["p", {}, "Body"]];
     const pm = Alert.spec.fromComark(wrapped, helpers)!;
     const back = Alert.spec.toComark(pm, helpers);
     expect(back).toEqual(["alert", { "type": "info", ":dismissible": "false" }, "Body"]);
   });
 
   it("applies declared defaults for missing props", () => {
-    const result = Alert.spec.fromComark(["alert", {}, ["p", {}, "x"]] as ComarkElement, helpers);
+    const result = Alert.spec.fromComark(["alert", {}, ["p", {}, "x"]] as ElementNode, helpers);
     // `type` has a default; `dismissible` has a default; the rest are undefined.
     expect(result?.attrs?.type).toBe("info");
     expect(result?.attrs?.dismissible).toBe(false);
   });
 
   it("seeds an empty paragraph when the body is empty (PM `block+` cannot be empty)", () => {
-    const result = Alert.spec.fromComark(["alert", { type: "info" }] as ComarkElement, helpers);
+    const result = Alert.spec.fromComark(["alert", { type: "info" }] as ElementNode, helpers);
     expect(result?.content).toEqual([{ type: "paragraph" }]);
   });
 });
@@ -105,13 +105,7 @@ describe("defineComarkComponent — inline component", () => {
   });
 
   it("round-trips a badge with content and props", () => {
-    const original: ComarkElement = [
-      "p",
-      {},
-      "Status: ",
-      ["badge", { color: "green" }, "New"],
-      ".",
-    ];
+    const original: ElementNode = ["p", {}, "Status: ", ["badge", { color: "green" }, "New"], "."];
     const pm = paragraphSpec.fromComark(original, helpers)!;
     expect(pm.content?.[1]).toEqual({
       type: "badge",
@@ -129,7 +123,7 @@ describe("defineComarkComponent — inline component", () => {
     });
     const h = createSerializer({ nodes: [paragraphSpec, Box.spec], marks: [] });
     const pm = Box.spec.fromComark(
-      ["box", { ":config": '{"size":3,"open":true}' }] as ComarkElement,
+      ["box", { ":config": '{"size":3,"open":true}' }] as ElementNode,
       h,
     )!;
     expect(pm.attrs?.config).toEqual({ size: 3, open: true });

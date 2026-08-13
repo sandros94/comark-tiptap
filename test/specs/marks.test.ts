@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer } from "../../src/serializer";
-import type { ComarkElement } from "../../src/types";
+import type { ElementNode } from "../../src/types";
 import { boldSpec, codeSpec, italicSpec, linkSpec, strikeSpec } from "../../src/specs/marks";
 import { paragraphSpec } from "../../src/specs/paragraph";
 
@@ -31,11 +31,11 @@ describe("boldSpec.toComark", () => {
 
 describe("boldSpec.fromComark", () => {
   it("produces a bare bold mark for an attrless `<strong>`", () => {
-    expect(boldSpec.fromComark(["strong", {}, "x"] as ComarkElement)).toEqual({ type: "bold" });
+    expect(boldSpec.fromComark(["strong", {}, "x"] as ElementNode)).toEqual({ type: "bold" });
   });
 
   it("routes element attributes onto `mark.attrs.htmlAttrs`", () => {
-    const mark = boldSpec.fromComark(["strong", { class: "k", id: "b" }, "x"] as ComarkElement);
+    const mark = boldSpec.fromComark(["strong", { class: "k", id: "b" }, "x"] as ElementNode);
     expect(mark).toEqual({
       type: "bold",
       attrs: { htmlAttrs: { class: "k", id: "b" } },
@@ -43,7 +43,7 @@ describe("boldSpec.fromComark", () => {
   });
 
   it("accepts the legacy `<b>` tag", () => {
-    expect(boldSpec.fromComark(["b", { class: "a" }, "x"] as ComarkElement)).toEqual({
+    expect(boldSpec.fromComark(["b", { class: "a" }, "x"] as ElementNode)).toEqual({
       type: "bold",
       attrs: { htmlAttrs: { class: "a" } },
     });
@@ -52,14 +52,14 @@ describe("boldSpec.fromComark", () => {
 
 describe("bold round-trip via helpers", () => {
   it('parses Comark `["strong", {.foo}, "X"]` to PM and back', () => {
-    const original: ComarkElement = ["p", {}, ["strong", { class: "foo" }, "X"]];
+    const original: ElementNode = ["p", {}, ["strong", { class: "foo" }, "X"]];
     const pm = paragraphSpec.fromComark(original, helpers);
     const back = paragraphSpec.toComark(pm!, helpers);
     expect(back).toEqual(original);
   });
 
   it("preserves nested marks layered through helpers.parseInlines", () => {
-    const original: ComarkElement = ["p", {}, "a ", ["strong", { class: "k" }, "B"], " c"];
+    const original: ElementNode = ["p", {}, "a ", ["strong", { class: "k" }, "B"], " c"];
     const pm = paragraphSpec.fromComark(original, helpers);
     const back = paragraphSpec.toComark(pm!, helpers);
     expect(back).toEqual(original);
@@ -77,11 +77,11 @@ describe("italicSpec", () => {
   });
 
   it("reads `<em>` and the legacy `<i>` into the italic mark", () => {
-    expect(italicSpec.fromComark(["em", { class: "k" }, "x"] as ComarkElement)).toEqual({
+    expect(italicSpec.fromComark(["em", { class: "k" }, "x"] as ElementNode)).toEqual({
       type: "italic",
       attrs: { htmlAttrs: { class: "k" } },
     });
-    expect(italicSpec.fromComark(["i", {}, "y"] as ComarkElement)).toEqual({ type: "italic" });
+    expect(italicSpec.fromComark(["i", {}, "y"] as ElementNode)).toEqual({ type: "italic" });
   });
 });
 
@@ -96,12 +96,12 @@ describe("strikeSpec", () => {
   });
 
   it("accepts the input shapes Comark might emit (del / s / strike)", () => {
-    expect(strikeSpec.fromComark(["del", { class: "a" }, "x"] as ComarkElement)).toEqual({
+    expect(strikeSpec.fromComark(["del", { class: "a" }, "x"] as ElementNode)).toEqual({
       type: "strike",
       attrs: { htmlAttrs: { class: "a" } },
     });
-    expect(strikeSpec.fromComark(["s", {}, "y"] as ComarkElement)).toEqual({ type: "strike" });
-    expect(strikeSpec.fromComark(["strike", {}, "z"] as ComarkElement)).toEqual({ type: "strike" });
+    expect(strikeSpec.fromComark(["s", {}, "y"] as ElementNode)).toEqual({ type: "strike" });
+    expect(strikeSpec.fromComark(["strike", {}, "z"] as ElementNode)).toEqual({ type: "strike" });
   });
 });
 
@@ -116,8 +116,8 @@ describe("codeSpec", () => {
   });
 
   it("reads `<code>` into a code mark", () => {
-    expect(codeSpec.fromComark(["code", {}, "x"] as ComarkElement)).toEqual({ type: "code" });
-    expect(codeSpec.fromComark(["code", { class: "k" }, "x"] as ComarkElement)).toEqual({
+    expect(codeSpec.fromComark(["code", {}, "x"] as ElementNode)).toEqual({ type: "code" });
+    expect(codeSpec.fromComark(["code", { class: "k" }, "x"] as ElementNode)).toEqual({
       type: "code",
       attrs: { htmlAttrs: { class: "k" } },
     });
@@ -169,7 +169,7 @@ describe("linkSpec.toComark", () => {
 
 describe("linkSpec.fromComark", () => {
   it("reads href / title into native attrs", () => {
-    expect(linkSpec.fromComark(["a", { href: "/x", title: "t" }, "go"] as ComarkElement)).toEqual({
+    expect(linkSpec.fromComark(["a", { href: "/x", title: "t" }, "go"] as ElementNode)).toEqual({
       type: "link",
       attrs: { href: "/x", title: "t" },
     });
@@ -181,7 +181,7 @@ describe("linkSpec.fromComark", () => {
         "a",
         { "href": "/x", "target": "_blank", "rel": "noopener", "class": "btn", "data-x": "y" },
         "go",
-      ] as ComarkElement),
+      ] as ElementNode),
     ).toEqual({
       type: "link",
       attrs: {
@@ -196,7 +196,7 @@ describe("linkSpec.fromComark", () => {
   });
 
   it("omits htmlAttrs when there is nothing left after reserved keys", () => {
-    const mark = linkSpec.fromComark(["a", { href: "/x" }, "X"] as ComarkElement);
+    const mark = linkSpec.fromComark(["a", { href: "/x" }, "X"] as ElementNode);
     expect(mark).toEqual({ type: "link", attrs: { href: "/x", title: null } });
   });
 });

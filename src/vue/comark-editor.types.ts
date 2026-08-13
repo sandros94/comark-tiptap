@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/vue-3";
 import type {
   ComarkErrorHandler,
-  ComarkTree,
+  MarkdownDocument,
   ContentType,
   ContentValue,
   JSONContent,
@@ -82,7 +82,7 @@ export interface ComarkEditorExpose {
   editor: Editor | undefined;
   isReady: boolean;
   setContent?: (input: SetterInput<ContentValue>, options?: SetContentOptions) => Promise<void>;
-  getAst?: () => ComarkTree | null;
+  getAst?: () => MarkdownDocument | null;
   getMarkdown?: () => Promise<string | null>;
   getJson?: () => JSONContent | null;
   getHtml?: () => string | null;

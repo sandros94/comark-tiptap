@@ -3,11 +3,11 @@ import { Editor } from "@tiptap/vue-3";
 import {
   applyContent,
   ComarkKit,
-  isComarkTreeLike,
+  isMarkdownDocumentLike,
   readByFlavor,
   type ComarkErrorHandler,
   type ComarkKitOptions,
-  type ComarkTree,
+  type MarkdownDocument,
   type ContentType,
   type ContentValue,
   type JSONContent,
@@ -36,7 +36,7 @@ export interface UseComarkEditorOptions {
    * pass a `Ref<T>` or `() => T` for live binding (changes propagate
    * into the editor), or a plain value for a one-shot mount-time seed.
    *
-   * Object inputs are auto-detected on bare `setContent` (`ComarkTree`
+   * Object inputs are auto-detected on bare `setContent` (`MarkdownDocument`
    * shapes route through `setComarkAst`); string inputs follow
    * `contentType`.
    */
@@ -122,7 +122,7 @@ export interface UseComarkEditorReturn {
   setContent: (input: SetterInput<ContentValue>, options?: SetContentOptions) => Promise<void>;
 
   /** Read the current state in any flavor. Returns `null` until ready. */
-  getAst: () => ComarkTree | null;
+  getAst: () => MarkdownDocument | null;
   getMarkdown: () => Promise<string | null>;
   getJson: () => JSONContent | null;
   /**
@@ -204,11 +204,11 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
    *   - `contentType: 'ast'` (object or JSON-encoded string): Tiptap's
    *     `contentType` enum has no `'ast'`, so the constructor would error
    *     or misread it as markdown.
-   *   - object input auto-detected as a `ComarkTree`: not a shape the
+   *   - object input auto-detected as a `MarkdownDocument`: not a shape the
    *     constructor can consume.
    */
   const useAstSeed =
-    initialValue !== undefined && (contentType === "ast" || isComarkTreeLike(initialValue));
+    initialValue !== undefined && (contentType === "ast" || isMarkdownDocumentLike(initialValue));
 
   const tiptapContent: Content | undefined = useAstSeed
     ? undefined
@@ -253,8 +253,13 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
      *      `onUpdate`. `<ComarkEditor>` runs its own initial v-model sync
      *      via `onCreate` since it can't rely on `update` here.
      */
-    if (initialValue !== undefined && (contentType === "ast" || isComarkTreeLike(initialValue))) {
-      instance.commands.setComarkAst(initialValue as ComarkTree | string, { emitUpdate: false });
+    if (
+      initialValue !== undefined &&
+      (contentType === "ast" || isMarkdownDocumentLike(initialValue))
+    ) {
+      instance.commands.setComarkAst(initialValue as MarkdownDocument | string, {
+        emitUpdate: false,
+      });
     }
 
     editor.value = instance;
@@ -308,7 +313,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
 
   // Getters
 
-  const getAst = (): ComarkTree | null => editor.value?.storage.comark.getAst() ?? null;
+  const getAst = (): MarkdownDocument | null => editor.value?.storage.comark.getAst() ?? null;
   const getMarkdown = (): Promise<string | null> =>
     editor.value?.storage.comark.getMarkdown() ?? Promise.resolve(null);
   const getJson = (): JSONContent | null =>

@@ -1,11 +1,11 @@
 export type {
-  ComarkComment as ComarkCommentTuple,
-  ComarkElement,
-  ComarkElementAttributes,
+  CommentNode,
+  ElementNode,
+  ElementNodeAttributes,
   ComarkHelpers,
-  ComarkNode,
-  ComarkText,
-  ComarkTree,
+  Node,
+  TextNode,
+  MarkdownDocument,
   ContentType,
   ContentValue,
   JSONContent,
@@ -19,7 +19,7 @@ export type {
 } from "./types";
 
 /* @internal — content-routing helpers shared by the framework bindings; not part of the public API. */
-export { applyContent, isComarkTreeLike, readByFlavor, safeJson } from "./content";
+export { applyContent, isMarkdownDocumentLike, readByFlavor, safeJson } from "./content";
 
 export { ComarkKit, type ComarkKitOptions } from "./kit";
 

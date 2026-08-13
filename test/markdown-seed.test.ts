@@ -9,7 +9,7 @@
  * pass-through paths (object content, empty string) so we catch any
  * regression in either direction.
  *
- * The override is async (comark.parse is Promise-based), so each
+ * The override is async (parseMarkdown is Promise-based), so each
  * markdown-string flow needs a microtask flush before assertions.
  */
 
@@ -312,7 +312,7 @@ describe('ComarkSerializer overrides — `contentType: "html"` escape hatch', ()
   // The library default is markdown for strings; the HTML escape hatch
   // is for callers that genuinely have HTML (paste handlers, server-
   // rendered fragments, etc.) and want to opt back into Tiptap's stock
-  // pipeline. The HTML path is fully synchronous — no comark.parse
+  // pipeline. The HTML path is fully synchronous — no parseMarkdown
   // microtask hop — so reads land immediately after the call.
 
   it('parses a string seed as HTML when `contentType: "html"` is set on the constructor', () => {
@@ -449,7 +449,7 @@ describe("ComarkSerializer — `setComarkAst` accepts both objects and JSON-enco
   // give it whatever shape your input is in (object or JSON-encoded
   // string), and it lands as a Comark AST.
 
-  it("applies a `ComarkTree` object", () => {
+  it("applies a `MarkdownDocument` object", () => {
     const editor = track(makeEditor());
     editor.commands.setComarkAst({
       nodes: [["h1", {}, "object input"]],

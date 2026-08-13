@@ -10,7 +10,7 @@
 import { Editor, generateJSON } from "@tiptap/core";
 import { describe, expect, it } from "vitest";
 import { ComarkKit, type ComarkKitOptions } from "../../src/kit";
-import type { ComarkTree, JSONContent, ResolveSrc } from "../../src/types";
+import type { MarkdownDocument, JSONContent, ResolveSrc } from "../../src/types";
 
 const CDN = "https://cdn.example";
 const resolveSrc: ResolveSrc = (src) => (src.startsWith("public/") ? `${CDN}/${src}` : undefined);
@@ -21,9 +21,9 @@ const PICTURE = [
   ["source", { srcset: "public/a.avif 1x, public/a-2x.avif 2x", type: "image/avif" }],
   ["source", { srcset: "public/a.webp", type: "image/webp" }],
   ["img", { src: "public/a.jpg", alt: "x" }],
-] as ComarkTree["nodes"][number];
+] as MarkdownDocument["nodes"][number];
 
-function tree(nodes: ComarkTree["nodes"]): ComarkTree {
+function tree(nodes: MarkdownDocument["nodes"]): MarkdownDocument {
   return { nodes, frontmatter: {}, meta: {} };
 }
 
@@ -35,22 +35,23 @@ function makeEditor(options: Partial<ComarkKitOptions> = {}): Editor {
   });
 }
 
-function getAst(editor: Editor): ComarkTree {
-  return (editor.storage as { comark: { getAst(): ComarkTree } }).comark.getAst();
+function getAst(editor: Editor): MarkdownDocument {
+  return (editor.storage as { comark: { getAst(): MarkdownDocument } }).comark.getAst();
 }
 
 describe("AST round-trip", () => {
-  it("preserves sources losslessly (standalone picture normalizes to a paragraph wrap)", () => {
+  it("preserves a standalone picture losslessly (sole-child paragraph hoists back out)", () => {
     const editor = makeEditor();
     editor.commands.setComarkAst(tree([PICTURE]));
-    // Inline atom ⇒ block-level pictures come back paragraph-wrapped, like bare imgs.
-    expect(getAst(editor).nodes).toEqual([["p", {}, PICTURE]]);
+    // Inline atom in PM, but an attrless paragraph whose only child is a
+    // picture serializes back to the bare top-level element (context: 'inline-block').
+    expect(getAst(editor).nodes).toEqual([PICTURE]);
     editor.destroy();
   });
 
   it("preserves an inline picture inside a text run", () => {
     const editor = makeEditor();
-    const para = ["p", {}, "see ", PICTURE, " here"] as ComarkTree["nodes"][number];
+    const para = ["p", {}, "see ", PICTURE, " here"] as MarkdownDocument["nodes"][number];
     editor.commands.setComarkAst(tree([para]));
     expect(getAst(editor).nodes).toEqual([para]);
     editor.destroy();
@@ -88,7 +89,7 @@ describe("editor DOM", () => {
     ]);
     expect(picture.querySelector("img")?.getAttribute("src")).toBe(`${CDN}/public/a.jpg`);
     // Stored attrs stay raw regardless.
-    expect(getAst(editor).nodes).toEqual([["p", {}, PICTURE]]);
+    expect(getAst(editor).nodes).toEqual([PICTURE]);
     editor.destroy();
   });
 
@@ -125,12 +126,12 @@ describe("resolved display HTML round-trips back to raw values", () => {
       { class: "hero" },
       ["source", { srcset: "public/a.webp" }],
       ["img", { src: "public/a.jpg" }],
-    ] as ComarkTree["nodes"][number];
+    ] as MarkdownDocument["nodes"][number];
     editor.commands.setComarkAst(tree([withClass]));
     const pm = generateJSON(editor.getHTML(), [ComarkKit]) as JSONContent;
     const picture = pm.content?.[0]?.content?.[0];
     expect(picture?.attrs?.htmlAttrs).toEqual({ class: "hero" });
-    expect(getAst(editor).nodes).toEqual([["p", {}, withClass]]);
+    expect(getAst(editor).nodes).toEqual([withClass]);
     editor.destroy();
   });
 });

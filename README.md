@@ -46,15 +46,15 @@ const editor = new Editor({
   content: "# Hello\n\n::alert\nHi\n::", // markdown — parsed async, see below
 });
 
-editor.storage.comark.getAst(); // ComarkTree (sync)
+editor.storage.comark.getAst(); // MarkdownDocument (sync)
 await editor.storage.comark.getMarkdown(); // string (async — comark/render)
-editor.commands.setComarkMarkdown("# Hi"); // markdown → comark.parse
-editor.commands.setComarkAst(tree); // ComarkTree → serializer dispatch table
+editor.commands.setComarkMarkdown("# Hi"); // markdown → parseMarkdown
+editor.commands.setComarkAst(tree); // MarkdownDocument → serializer dispatch table
 ```
 
 ### Strings are markdown
 
-`comark-tiptap` is opinionated: **strings are markdown — never HTML**. `setContent`, `insertContent`, and `insertContentAt` route a string argument through `comark.parse`. Pre-parsed content (PM JSON, `Fragment`, `ProseMirrorNode`) passes through untouched; the empty string falls through too, so `clearContent()` keeps its sync semantics.
+`comark-tiptap` is opinionated: **strings are markdown — never HTML**. `setContent`, `insertContent`, and `insertContentAt` route a string argument through `parseMarkdown`. Pre-parsed content (PM JSON, `Fragment`, `ProseMirrorNode`) passes through untouched; the empty string falls through too, so `clearContent()` keeps its sync semantics.
 
 ```ts
 editor.commands.setContent("## Section\n\n- a\n- b"); // markdown
@@ -69,11 +69,11 @@ editor.commands.setContent(JSON.stringify(pmDoc), { contentType: "json" }); // s
 editor.commands.setComarkAst('{"nodes":[["p",{},"Hi"]],"frontmatter":{},"meta":{}}'); // JSON-encoded AST
 ```
 
-Object inputs are auto-detected — a `ComarkTree` (anything with a `nodes` array) routes through the AST path; plain PM JSON flows to the stock command.
+Object inputs are auto-detected — a `MarkdownDocument` (anything with a `nodes` array) routes through the AST path; plain PM JSON flows to the stock command.
 
 ### Async markdown seed — a divergence from upstream
 
-`comark.parse` is **async**, so a markdown string seed (`new Editor({ content })`, `setContent`, `insertContent`) applies one microtask later — the command returns `true` synchronously but the content lands after the parse resolves. Don't read `editor.getJSON()` immediately after a markdown seed; listen on `editor.on('update', …)` or wait a tick. Object paths (PM JSON, `setComarkAst`) stay synchronous.
+`parseMarkdown` is **async**, so a markdown string seed (`new Editor({ content })`, `setContent`, `insertContent`) applies one microtask later — the command returns `true` synchronously but the content lands after the parse resolves. Don't read `editor.getJSON()` immediately after a markdown seed; listen on `editor.on('update', …)` or wait a tick. Object paths (PM JSON, `setComarkAst`) stay synchronous.
 
 ### Configuration
 
@@ -91,7 +91,7 @@ ComarkKit.configure({
 });
 ```
 
-Three input shapes are honored throughout — `string` (markdown), `ComarkTree` (AST), `JSONContent` (PM JSON) — and the same three read back out via `getMarkdown()` / `getAst()` / `getJSON()`. `getHTML()` is pure pass-through to Tiptap.
+Three input shapes are honored throughout — `string` (markdown), `MarkdownDocument` (AST), `JSONContent` (PM JSON) — and the same three read back out via `getMarkdown()` / `getAst()` / `getJSON()`. `getHTML()` is pure pass-through to Tiptap.
 
 AST nodes whose kit extension is disabled (`picture: false`, `comment: false`, …) are dropped individually on the way in — the rest of the document survives — and each drop is reported through `serializer.onError`.
 
@@ -114,10 +114,9 @@ ComarkKit.configure({
 
 ### Pictures
 
-`<picture>` elements round-trip losslessly through the editor as an opaque inline atom: sources and the inner img are preserved verbatim in `attrs` (selectable/deletable/draggable, not editable from within), and `resolveSrc` applies to their display. Block-level pictures come back paragraph-wrapped — same normalization as bare `<img>` elements.
+`<picture>` elements round-trip losslessly through the editor as an opaque inline atom: sources and the inner img are preserved verbatim in `attrs` (selectable/deletable/draggable, not editable from within), and `resolveSrc` applies to their display. A standalone picture serializes back to a top-level element (the paragraph wrapper PM needs for the inline atom hoists out); pictures inside a text run stay inline.
 
-> [!WARNING]
-> _Markdown_ output of pictures is not yet reliable upstream: comark 0.5.0 renders `$`-less elements as directives (whose inline form doesn't reparse) and splits raw-HTML children with blank lines. AST round-trips are unaffected — store the AST for documents containing pictures.
+Markdown output round-trips too (comark 0.6+): pictures render as the `picture` directive — the inline form (`:picture[![alt](src)]`) reparses exactly, and the block form's paragraph-wrapped img is re-absorbed on parse.
 
 ## Vue — `comark-tiptap/vue`
 
@@ -127,7 +126,7 @@ No UI-library dependency, no design-system opinions — just the editor primitiv
 <script setup lang="ts">
 import { ref } from "vue";
 import { ComarkEditor, defineComarkVueComponent } from "comark-tiptap/vue";
-import type { ComarkTree } from "comark-tiptap/vue";
+import type { MarkdownDocument } from "comark-tiptap/vue";
 import AlertNodeView from "./AlertNodeView.vue";
 
 const Alert = defineComarkVueComponent({
@@ -137,7 +136,7 @@ const Alert = defineComarkVueComponent({
   nodeView: AlertNodeView, // → real Vue NodeView via VueNodeViewRenderer
 });
 
-const tree = ref<ComarkTree>({ nodes: [], frontmatter: {}, meta: {} });
+const tree = ref<MarkdownDocument>({ nodes: [], frontmatter: {}, meta: {} });
 </script>
 
 <template>
@@ -177,7 +176,7 @@ await setContent("## Replaced\n"); // single setter, dispatches by contentType
 await setContent("<p>hi</p>", { contentType: "html" }); // per-call override
 await setContent(({ content }) => `${content}\n\nappended`); // functional updater
 
-const tree = getAst(); // ComarkTree | null
+const tree = getAst(); // MarkdownDocument | null
 const markdown = await getMarkdown(); // string | null (async)
 ```
 
@@ -190,7 +189,7 @@ Same surface, React idioms. `<ComarkEditor>` is **controlled** via `value` / `on
 ```tsx
 import { useState } from "react";
 import { ComarkEditor, defineComarkReactComponent } from "comark-tiptap/react";
-import type { ComarkTree } from "comark-tiptap/react";
+import type { MarkdownDocument } from "comark-tiptap/react";
 import AlertNodeView from "./AlertNodeView";
 
 const Alert = defineComarkReactComponent({
@@ -201,7 +200,7 @@ const Alert = defineComarkReactComponent({
 });
 
 function Editor() {
-  const [tree, setTree] = useState<ComarkTree>({ nodes: [], frontmatter: {}, meta: {} });
+  const [tree, setTree] = useState<MarkdownDocument>({ nodes: [], frontmatter: {}, meta: {} });
   return <ComarkEditor value={tree} onChange={setTree} contentType="ast" components={[Alert]} />;
 }
 ```
@@ -219,7 +218,7 @@ const { editor, setContent, getAst, getMarkdown, getJson, getHtml } = useComarkE
 await setContent("## Replaced\n"); // single setter, dispatches by contentType
 await setContent(({ content }) => `${content}\n\nappended`); // functional updater
 
-const tree = getAst(); // ComarkTree | null
+const tree = getAst(); // MarkdownDocument | null
 const markdown = await getMarkdown(); // string | null (async)
 ```
 

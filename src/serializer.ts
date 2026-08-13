@@ -6,16 +6,16 @@ import {
   type JSONContent,
 } from "@tiptap/core";
 import type { Schema } from "@tiptap/pm/model";
-import { parse } from "comark";
+import { parseMarkdown } from "comark";
 import { renderMarkdown } from "comark/render";
-import { isComarkTreeLike } from "./content";
+import { isMarkdownDocumentLike } from "./content";
 import { injectComarkStyles } from "./style";
 import type {
-  ComarkComment,
-  ComarkElement,
+  CommentNode,
+  ElementNode,
   ComarkHelpers,
-  ComarkNode,
-  ComarkTree,
+  Node,
+  MarkdownDocument,
   MarkSpec,
   NodeSpec,
   PMMark,
@@ -42,18 +42,17 @@ const DOC_PM_NAME = "doc";
 const CODE_PM_NAME = "code";
 
 /*
- * comark's `parse` applies streaming auto-close by default: it "closes" dangling
- * inline markers (a lone `*`, `~`, `$name`, `|x|`, …) by appending characters,
- * so a lone `*` in text comes back as `*…*`. That's correct for incremental /
- * streaming input but WRONG for the complete documents the editor always parses —
- * it corrupts literal text (see comarkdown/comark#136, #179, #195). Opt out.
+ * comark's `parseMarkdown` applies streaming auto-close by default: dangling
+ * markers at the tail of input that doesn't end in a newline get "closed"
+ * (`text with **partial` gains a <strong>). That's correct for incremental /
+ * streaming input but WRONG for the complete documents the editor always
+ * parses — content routinely arrives without a trailing newline. Opt out.
  */
 const PARSE_OPTIONS = { autoClose: false } as const;
 
-const isComarkText = (n: ComarkNode): n is string => typeof n === "string";
-const isComarkComment = (n: ComarkNode): n is ComarkComment => Array.isArray(n) && n[0] === null;
-const isComarkElement = (n: ComarkNode): n is ComarkElement =>
-  Array.isArray(n) && typeof n[0] === "string";
+const isTextNode = (n: Node): n is string => typeof n === "string";
+const isCommentNode = (n: Node): n is CommentNode => Array.isArray(n) && n[0] === null;
+const isElementNode = (n: Node): n is ElementNode => Array.isArray(n) && typeof n[0] === "string";
 
 /**
  * Build the recursion helpers from a flat list of node / mark specs.
@@ -82,32 +81,32 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     }
   }
 
-  function pickNodeForTag(el: ComarkElement): NodeSpec | undefined {
+  function pickNodeForTag(el: ElementNode): NodeSpec | undefined {
     const candidates = nodeByTag.get(el[0]);
     if (!candidates) return undefined;
     if (candidates.length === 1) return candidates[0];
     return candidates.find((c) => !c.matches || c.matches(el)) ?? candidates[0];
   }
 
-  function pickMarkForTag(el: ComarkElement): MarkSpec | undefined {
+  function pickMarkForTag(el: ElementNode): MarkSpec | undefined {
     const candidates = markByTag.get(el[0]);
     if (!candidates) return undefined;
     return candidates[0];
   }
 
-  /* True for marks (always inline) and for node specs that declared
-     context: 'inline' (hardBreak, image, inline-kind components). */
-  function isInlineComarkElement(el: ComarkElement): boolean {
+  /* True for marks (always inline) and for node specs that declared an
+     inline context (hardBreak, image, inline-kind components, picture). */
+  function isInlineElementNode(el: ElementNode): boolean {
     if (pickMarkForTag(el)) return true;
     const node = pickNodeForTag(el);
-    return node?.context === "inline";
+    return node?.context === "inline" || node?.context === "inline-block";
   }
 
   // PM JSON → Comark
 
-  function serializeBlocks(content: JSONContent[] | undefined): ComarkNode[] {
+  function serializeBlocks(content: JSONContent[] | undefined): Node[] {
     if (!content) return [];
-    const out: ComarkNode[] = [];
+    const out: Node[] = [];
     for (const child of content) {
       if (!child.type) continue;
       const spec = nodeByPmName.get(child.type);
@@ -123,7 +122,7 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
      already filtered to known specs with `code` forced innermost. */
   interface InlineLeaf {
     marks: PMMark[];
-    base: ComarkNode;
+    base: Node;
   }
 
   /* Keep PM's outer-first order for every mark except `code`, which must sit
@@ -153,8 +152,8 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
      into — so a mark spanning mixed content (`**a _b_ c**`) yields a single
      element instead of one wrapper per run (which would lose edge whitespace
      and split a link into several). */
-  function groupLeaves(leaves: InlineLeaf[], depth: number): ComarkNode[] {
-    const out: ComarkNode[] = [];
+  function groupLeaves(leaves: InlineLeaf[], depth: number): Node[] {
+    const out: Node[] = [];
     let i = 0;
     while (i < leaves.length) {
       // `i < leaves.length`, so the element is present.
@@ -183,7 +182,7 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     return out;
   }
 
-  function serializeInlines(content: JSONContent[] | undefined): ComarkNode[] {
+  function serializeInlines(content: JSONContent[] | undefined): Node[] {
     if (!content) return [];
     const leaves: InlineLeaf[] = [];
     for (const child of content) {
@@ -207,9 +206,9 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
 
   // Comark → PM JSON
 
-  function parseBlocks(children: ComarkNode[]): JSONContent[] {
+  function parseBlocks(children: Node[]): JSONContent[] {
     const out: JSONContent[] = [];
-    let inlineBuf: ComarkNode[] = [];
+    let inlineBuf: Node[] = [];
 
     const flushInlines = () => {
       if (inlineBuf.length === 0) return;
@@ -221,26 +220,26 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     };
 
     for (const child of children) {
-      if (isComarkText(child)) {
+      if (isTextNode(child)) {
         /* Comark's autoUnwrap drops the paragraph wrapper around a lone
            paragraph, so bucket consecutive inlines into one paragraph. */
         if (child.length === 0) continue;
         inlineBuf.push(child);
         continue;
       }
-      if (isComarkComment(child)) {
+      if (isCommentNode(child)) {
         flushInlines();
         const spec = nodeByPmName.get("comarkComment");
         if (spec) {
-          const result = spec.fromComark(child as unknown as ComarkElement, helpers);
+          const result = spec.fromComark(child as unknown as ElementNode, helpers);
           if (result) out.push(result);
         }
         continue;
       }
-      if (!isComarkElement(child)) continue;
+      if (!isElementNode(child)) continue;
 
       // Inline element (mark or inline-context node)? Buffer it.
-      if (isInlineComarkElement(child)) {
+      if (isInlineElementNode(child)) {
         inlineBuf.push(child);
         continue;
       }
@@ -252,7 +251,7 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
         /* Unknown / forward-compat block tag: splat its children so their
            content survives, instead of dropping the whole subtree. Mirrors the
            inline fallback in parseInlines. */
-        out.push(...parseBlocks(child.slice(2) as ComarkNode[]));
+        out.push(...parseBlocks(child.slice(2) as Node[]));
         continue;
       }
       const result = spec.fromComark(child, helpers);
@@ -263,26 +262,26 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     return out;
   }
 
-  function parseInlines(children: ComarkNode[]): JSONContent[] {
+  function parseInlines(children: Node[]): JSONContent[] {
     const out: JSONContent[] = [];
     for (const child of children) {
-      if (isComarkText(child)) {
+      if (isTextNode(child)) {
         if (child.length === 0) continue;
         out.push({ type: "text", text: child });
         continue;
       }
-      if (isComarkComment(child)) {
+      if (isCommentNode(child)) {
         // Comments inside inline runs are unusual; drop them silently.
         continue;
       }
-      if (!isComarkElement(child)) continue;
+      if (!isElementNode(child)) continue;
 
       // Mark? Recurse into its children with the mark layered on.
       const markSpec = pickMarkForTag(child);
       if (markSpec) {
         const mark = markSpec.fromComark(child);
         if (!mark) continue;
-        const innerChildren = child.slice(2) as ComarkNode[];
+        const innerChildren = child.slice(2) as Node[];
         const innerJson = parseInlines(innerChildren);
         for (const j of innerJson) {
           /* Prepend: this mark is the outermost seen so far (recursion unwinds
@@ -298,7 +297,7 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
       if (!nodeSpec) {
         /* Unknown tag: splat children as a lossy fallback so text still shows.
            Only fires for hand-authored AST with unrecognized tags. */
-        const innerChildren = child.slice(2) as ComarkNode[];
+        const innerChildren = child.slice(2) as Node[];
         out.push(...parseInlines(innerChildren));
         continue;
       }
@@ -331,7 +330,7 @@ export function pmDocToComark(
   doc: JSONContent,
   helpers: ComarkHelpers,
   carry: { frontmatter?: Record<string, unknown>; meta?: Record<string, unknown> } = {},
-): ComarkTree {
+): MarkdownDocument {
   if (doc.type !== DOC_PM_NAME) {
     throw new Error(`Expected PM doc node, got "${doc.type}"`);
   }
@@ -343,7 +342,7 @@ export function pmDocToComark(
 }
 
 /** Convert a Comark tree to a PM doc JSON using the given helpers. */
-export function comarkToPmDoc(tree: ComarkTree, helpers: ComarkHelpers): JSONContent {
+export function comarkToPmDoc(tree: MarkdownDocument, helpers: ComarkHelpers): JSONContent {
   const content = helpers.parseBlocks(tree.nodes);
   return {
     type: DOC_PM_NAME,
@@ -359,11 +358,11 @@ declare module "@tiptap/core" {
       /**
        * Replace editor content from a Comark AST.
        *
-       * Accepts a `ComarkTree` or a JSON-encoded AST string (for symmetry with
+       * Accepts a `MarkdownDocument` or a JSON-encoded AST string (for symmetry with
        * `setComarkMarkdown`). A string is `JSON.parse`d and shape-checked; an
        * invalid shape returns `false` without touching the editor.
        *
-       * @param value - A `ComarkTree` or its JSON-encoded string form.
+       * @param value - A `MarkdownDocument` or its JSON-encoded string form.
        * @param options - Pass `{ emitUpdate: false }` to apply silently (no `update` event).
        * @example
        * ```ts
@@ -371,7 +370,10 @@ declare module "@tiptap/core" {
        * editor.commands.setComarkAst(jsonString, { emitUpdate: false })
        * ```
        */
-      setComarkAst: (value: ComarkTree | string, options?: SetComarkContentOptions) => ReturnType;
+      setComarkAst: (
+        value: MarkdownDocument | string,
+        options?: SetComarkContentOptions,
+      ) => ReturnType;
       /**
        * Replace editor content from a markdown string (parsed via comark).
        *
@@ -393,7 +395,7 @@ declare module "@tiptap/core" {
      *
      * @default 'markdown'
      * @remarks
-     * - `'markdown'` — `comark.parse`, async.
+     * - `'markdown'` — `parseMarkdown`, async.
      * - `'html'` — Tiptap's stock HTML pipeline, sync.
      * - `'json'` — `JSON.parse`, then route by shape.
      */
@@ -486,7 +488,7 @@ export interface ComarkSerializerStorage {
    */
   editor: Editor | null;
   /** Read the editor's current content as a Comark AST. */
-  getAst(): ComarkTree;
+  getAst(): MarkdownDocument;
   /** Read the editor's current content as Comark markdown. */
   getMarkdown(): Promise<string>;
 }
@@ -561,7 +563,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       meta: {},
       editor: null,
       onError: undefined,
-      getAst(this: ComarkSerializerStorage): ComarkTree {
+      getAst(this: ComarkSerializerStorage): MarkdownDocument {
         if (!this.editor) throw new Error("[comark] editor not yet attached");
         return pmDocToComark(this.editor.getJSON() as JSONContent, this.helpers, {
           frontmatter: this.frontmatter,
@@ -585,7 +587,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
     /* Tiptap's constructor calls createDocument(options.content) directly, so the
        setContent override below never fires for the seed — hijack options.content
        here, before createDoc runs, for cases the stock pipeline can't handle:
-         - string (markdown): comark.parse is async, so mount empty and re-apply
+         - string (markdown): parseMarkdown is async, so mount empty and re-apply
            when it resolves (update fires then).
          - string + contentType 'json': strict PM JSON, pass through to Tiptap.
          - string + contentType 'html': Tiptap's stock HTML path.
@@ -603,7 +605,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       } else {
         const markdown = opts.content;
         opts.content = "";
-        parse(markdown, PARSE_OPTIONS)
+        parseMarkdown(markdown, PARSE_OPTIONS)
           .then((tree) => {
             if (this.editor.isDestroyed) return;
             this.editor.commands.setComarkAst(tree, { emitUpdate: true });
@@ -612,7 +614,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
             reportError(this.options.onError, err, { phase: "construct" });
           });
       }
-    } else if (isComarkTreeLike(opts.content)) {
+    } else if (isMarkdownDocumentLike(opts.content)) {
       const tree = opts.content;
       opts.content = null;
       queueMicrotask(() => {
@@ -631,13 +633,13 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
   addCommands() {
     return {
       setComarkAst:
-        (value: ComarkTree | string, options?: SetComarkContentOptions) =>
+        (value: MarkdownDocument | string, options?: SetComarkContentOptions) =>
         ({ commands }) => {
           /* String form: JSON.parse + AST shape-check; bad shapes return false. */
-          let tree: ComarkTree;
+          let tree: MarkdownDocument;
           if (typeof value === "string") {
             const parsed = safeJsonParse(value, this.options.onError, "setComarkAst");
-            if (parsed === undefined || !isComarkTreeLike(parsed)) {
+            if (parsed === undefined || !isMarkdownDocumentLike(parsed)) {
               /* Bad JSON is already reported by safeJsonParse; only the
                  valid-JSON-but-wrong-shape case needs a report here. */
               if (parsed !== undefined) {
@@ -669,7 +671,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       setComarkMarkdown:
         (markdown: string, options?: SetComarkContentOptions) =>
         ({ editor }) => {
-          parse(markdown, PARSE_OPTIONS)
+          parseMarkdown(markdown, PARSE_OPTIONS)
             .then((tree) => {
               if (editor.isDestroyed) return;
               editor.commands.setComarkAst(tree, options);
@@ -683,7 +685,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       /* Overrides for Tiptap's core content commands: strings default to markdown;
          objects auto-detect (nodes array → Comark AST via setComarkAst, else stock).
          Empty string falls through to keep clearContent's setContent('') synchronous.
-         Markdown path: comark.parse is async, so a string seed applies a microtask
+         Markdown path: parseMarkdown is async, so a string seed applies a microtask
          later and the command returns true optimistically (update fires on resolve).
          contentType (strings only): 'html' → Tiptap HTML, sync; 'json' → strict PM
          JSON, sync (AST strings belong on setComarkAst). */
@@ -691,7 +693,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         /* Inline the AST application here (don't call editor.commands.setComarkAst):
            invoking another command from inside a (props) => handler dispatches a
            fresh transaction, which ProseMirror rejects as mismatched. */
-        if (isComarkTreeLike(content)) {
+        if (isMarkdownDocumentLike(content)) {
           this.storage.frontmatter = { ...content.frontmatter };
           this.storage.meta = { ...content.meta };
           const doc = pruneDoc(
@@ -711,7 +713,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseSetContent(parsed as Content, options)(props);
         }
-        parse(content, PARSE_OPTIONS)
+        parseMarkdown(content, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             /* Outer transaction has settled here, so a fresh command is safe. */
@@ -727,7 +729,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       },
 
       insertContent: (value, options) => (props) => {
-        if (isComarkTreeLike(value)) {
+        if (isMarkdownDocumentLike(value)) {
           const payload = comarkTreeToInsertPayload(
             value,
             this.storage.helpers,
@@ -746,7 +748,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseInsertContent(parsed as Content, options)(props);
         }
-        parse(value, PARSE_OPTIONS)
+        parseMarkdown(value, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             const payload = comarkTreeToInsertPayload(
@@ -766,7 +768,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       },
 
       insertContentAt: (position, value, options) => (props) => {
-        if (isComarkTreeLike(value)) {
+        if (isMarkdownDocumentLike(value)) {
           const payload = comarkTreeToInsertPayload(
             value,
             this.storage.helpers,
@@ -785,7 +787,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseInsertContentAt(position, parsed as Content, options)(props);
         }
-        parse(value, PARSE_OPTIONS)
+        parseMarkdown(value, PARSE_OPTIONS)
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             const payload = comarkTreeToInsertPayload(
@@ -866,11 +868,11 @@ function pruneDoc(
   return pruneUnknownTypes(doc, schema, onError, phase) ?? { type: DOC_PM_NAME };
 }
 
-/* ComarkTree → the payload insertContent / insertContentAt want: the doc's block
+/* MarkdownDocument → the payload insertContent / insertContentAt want: the doc's block
    content array, or its inline-flattened form when inline is true. PM's insert*
    commands take a slice of nodes, not a doc node. */
 function comarkTreeToInsertPayload(
-  tree: ComarkTree,
+  tree: MarkdownDocument,
   helpers: ComarkHelpers,
   inline: boolean | undefined,
   schema: Schema,

@@ -26,15 +26,15 @@ export { Editor } from "@tiptap/vue-3";
 
 // Re-export the types most users will need from `comark-tiptap`.
 export type {
-  ComarkCommentTuple,
-  ComarkElement,
-  ComarkElementAttributes,
+  CommentNode,
+  ElementNode,
+  ElementNodeAttributes,
   ComarkErrorContext,
   ComarkErrorHandler,
   ComarkKitOptions,
-  ComarkNode,
-  ComarkText,
-  ComarkTree,
+  Node,
+  TextNode,
+  MarkdownDocument,
   ContentType,
   ContentValue,
   JSONContent,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ComarkEditor, defineComarkVueComponent } from 'comark-tiptap/vue'
-import type { ComarkTree, JSONContent } from 'comark-tiptap'
+import type { MarkdownDocument, JSONContent } from 'comark-tiptap'
 import type { Editor } from '@tiptap/vue-3'
 
 /* Vue playground for `comark-tiptap` + `comark-tiptap/vue`: the managed
@@ -27,7 +27,7 @@ const Badge = defineComarkVueComponent({
 })
 
 const md = ref(SEED)
-const ast = ref<ComarkTree | null>(null)
+const ast = ref<MarkdownDocument | null>(null)
 const json = ref<JSONContent | null>(null)
 
 /* `md` is the v-model; AST/JSON are read off the editor the component hands us

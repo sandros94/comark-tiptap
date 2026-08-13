@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer } from "../../src/serializer";
-import type { ComarkElement } from "../../src/types";
+import type { ElementNode } from "../../src/types";
 import { headingSpec } from "../../src/specs/heading";
 
 const helpers = createSerializer({ nodes: [headingSpec], marks: [] });
@@ -49,7 +49,7 @@ describe("headingSpec.toComark", () => {
 
 describe("headingSpec.fromComark", () => {
   it.each([1, 2, 3, 4, 5, 6])("reads h%d into a heading with the right level", (level) => {
-    const el: ComarkElement = [`h${level}`, {}, "T"];
+    const el: ElementNode = [`h${level}`, {}, "T"];
     const result = headingSpec.fromComark(el, helpers);
     expect(result).toEqual({
       type: "heading",
@@ -60,7 +60,7 @@ describe("headingSpec.fromComark", () => {
 
   it("routes element attributes onto htmlAttrs (id from {#anchor}, class from {.foo})", () => {
     const result = headingSpec.fromComark(
-      ["h2", { id: "sec-1", class: "sticky" }, "X"] as ComarkElement,
+      ["h2", { id: "sec-1", class: "sticky" }, "X"] as ElementNode,
       helpers,
     );
     expect(result?.attrs).toEqual({
@@ -71,7 +71,7 @@ describe("headingSpec.fromComark", () => {
 
   it("drops Comark `$` source-position metadata", () => {
     const result = headingSpec.fromComark(
-      ["h1", { id: "a", $: { line: 10 } }, "X"] as ComarkElement,
+      ["h1", { id: "a", $: { line: 10 } }, "X"] as ElementNode,
       helpers,
     );
     expect(result?.attrs).toEqual({ level: 1, htmlAttrs: { id: "a" } });
@@ -80,7 +80,7 @@ describe("headingSpec.fromComark", () => {
 
 describe("heading round-trip", () => {
   it("preserves an h2 with id and class", () => {
-    const original: ComarkElement = ["h2", { id: "top", class: "big" }, "Hello"];
+    const original: ElementNode = ["h2", { id: "top", class: "big" }, "Hello"];
     const pm = headingSpec.fromComark(original, helpers)!;
     const back = headingSpec.toComark(pm, helpers);
     expect(back).toEqual(original);

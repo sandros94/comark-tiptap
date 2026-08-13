@@ -1,7 +1,7 @@
-import type { ComarkElementAttributes } from "../types";
+import type { ElementNodeAttributes } from "../types";
 
 /** Drop nullish values; never include the `$` parser metadata. */
-export function cleanAttrs(attrs: ComarkElementAttributes | undefined): Record<string, unknown> {
+export function cleanAttrs(attrs: ElementNodeAttributes | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (!attrs) return out;
   for (const [k, v] of Object.entries(attrs)) {
@@ -22,7 +22,7 @@ export function cleanAttrs(attrs: ComarkElementAttributes | undefined): Record<s
  * Skips `$` and nullish entries.
  */
 export function splitAttrs(
-  attrs: ComarkElementAttributes | undefined,
+  attrs: ElementNodeAttributes | undefined,
   semanticKeys: readonly string[],
 ): {
   semantic: Record<string, unknown>;
@@ -47,8 +47,8 @@ export function splitAttrs(
 export function mergeAttrs(
   semantic: Record<string, unknown>,
   htmlAttrs: Record<string, unknown> | undefined,
-): ComarkElementAttributes {
-  const out: ComarkElementAttributes = {};
+): ElementNodeAttributes {
+  const out: ElementNodeAttributes = {};
   if (htmlAttrs) {
     for (const [k, v] of Object.entries(htmlAttrs)) {
       if (v === null || v === undefined) continue;

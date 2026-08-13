@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer, pmDocToComark } from "../../src/serializer";
-import type { ComarkElement, ComarkTree } from "../../src/types";
+import type { ElementNode, MarkdownDocument } from "../../src/types";
 import { commentSpec } from "../../src/specs/comment";
 import { paragraphSpec } from "../../src/specs/paragraph";
 
@@ -11,7 +11,7 @@ const helpers = createSerializer({
 
 describe("commentSpec", () => {
   it("round-trips a comment via the orchestrator", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [[null, {}, "TODO: write more here"] as never, ["p", {}, "After"]],
       frontmatter: {},
       meta: {},
@@ -32,7 +32,7 @@ describe("commentSpec", () => {
         null as unknown as string,
         { "class": "todo", "data-x": "1" },
         "note",
-      ] as unknown as ComarkElement,
+      ] as unknown as ElementNode,
       helpers,
     );
     expect(result).toEqual({

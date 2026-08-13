@@ -1,6 +1,6 @@
 import type { Content, Editor } from "@tiptap/core";
 import type { SetComarkContentOptions } from "./serializer";
-import type { ComarkTree, ContentType, ContentValue, JSONContent } from "./types";
+import type { MarkdownDocument, ContentType, ContentValue, JSONContent } from "./types";
 
 /*
  * Content-routing helpers shared by the serializer and the framework bindings.
@@ -10,12 +10,12 @@ import type { ComarkTree, ContentType, ContentValue, JSONContent } from "./types
  */
 
 /**
- * Structural check for a `ComarkTree` — an object carrying a `nodes` array.
+ * Structural check for a `MarkdownDocument` — an object carrying a `nodes` array.
  * Routes object content to the AST path.
  *
  * @internal
  */
-export function isComarkTreeLike(v: unknown): v is ComarkTree {
+export function isMarkdownDocumentLike(v: unknown): v is MarkdownDocument {
   return (
     !!v &&
     typeof v === "object" &&
@@ -27,7 +27,7 @@ export function isComarkTreeLike(v: unknown): v is ComarkTree {
 /**
  * Apply a content value with the command matching its flavor. Markdown strings
  * go async (`setComarkMarkdown`); an object with a `'markdown'` flavor falls
- * through to `setContent`, which auto-detects `ComarkTree` vs PM JSON.
+ * through to `setContent`, which auto-detects `MarkdownDocument` vs PM JSON.
  *
  * @internal
  */
@@ -43,7 +43,7 @@ export function applyContent(
   };
   switch (contentType) {
     case "ast":
-      editor.commands.setComarkAst(value as ComarkTree | string, baseOpts);
+      editor.commands.setComarkAst(value as MarkdownDocument | string, baseOpts);
       return;
     case "markdown":
       if (typeof value === "string") editor.commands.setComarkMarkdown(value, baseOpts);

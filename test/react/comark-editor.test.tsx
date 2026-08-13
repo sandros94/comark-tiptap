@@ -10,7 +10,12 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Editor, NodeViewWrapper } from "@tiptap/react";
-import { ComarkKit, type ComarkTree, type ContentValue, type JSONContent } from "comark-tiptap";
+import {
+  ComarkKit,
+  type MarkdownDocument,
+  type ContentValue,
+  type JSONContent,
+} from "comark-tiptap";
 import { ComarkEditor, defineComarkReactComponent } from "../../src/react/index";
 
 afterEach(cleanup);
@@ -256,7 +261,7 @@ describe("defineComarkReactComponent", () => {
       return <NodeViewWrapper data-test="alert-view">ALERT</NodeViewWrapper>;
     }
     const Alert = defineComarkReactComponent({ name: "alert", kind: "block", nodeView: AlertView });
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["alert", {}, ["p", {}, "x"]]],
       frontmatter: {},
       meta: {},

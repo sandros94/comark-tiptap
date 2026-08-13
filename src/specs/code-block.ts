@@ -1,5 +1,5 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
-import type { ComarkElement, ComarkHelpers, JSONContent, NodeSpec } from "../types";
+import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
 const SEMANTIC_KEYS = ["language", "filename", "highlights", "meta"] as const;
 
@@ -8,7 +8,7 @@ export const codeBlockSpec: NodeSpec = {
   pmName: "codeBlock",
   tags: ["pre"],
 
-  toComark(node: JSONContent): ComarkElement {
+  toComark(node: JSONContent): ElementNode {
     const semantic: Record<string, unknown> = {};
     if (node.attrs?.language) semantic.language = node.attrs.language;
     /* `!= null`: an explicit empty `filename`/`meta` (or `meta: 0`) is still user intent. */
@@ -39,16 +39,16 @@ export const codeBlockSpec: NodeSpec = {
       }
     }
 
-    return ["pre", preAttrs, ["code", codeAttrs, text] as ComarkElement];
+    return ["pre", preAttrs, ["code", codeAttrs, text] as ElementNode];
   },
 
-  fromComark(el: ComarkElement, _h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, _h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...children] = el;
 
     /* Inner `<code>` is always emitted by real Comark; handle hand-authored ASTs that omit it. */
-    const inner = children.find((c): c is ComarkElement => Array.isArray(c) && c[0] === "code");
+    const inner = children.find((c): c is ElementNode => Array.isArray(c) && c[0] === "code");
     let text = "";
-    let codeAttrs: ComarkElement[1] | undefined;
+    let codeAttrs: ElementNode[1] | undefined;
     if (inner) {
       codeAttrs = inner[1];
       for (const c of inner.slice(2) as unknown[]) {

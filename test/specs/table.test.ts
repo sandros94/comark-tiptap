@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { paragraphSpec } from "../../src/specs/paragraph";
 import { createSerializer } from "../../src/serializer";
-import type { ComarkElement } from "../../src/types";
+import type { ElementNode } from "../../src/types";
 import { tableCellSpec, tableHeaderSpec, tableRowSpec, tableSpec } from "../../src/specs/table";
 
 const helpers = createSerializer({
@@ -11,7 +11,7 @@ const helpers = createSerializer({
 
 describe("table round-trip", () => {
   it("round-trips a basic GFM table with header + body", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "table",
       {},
       ["thead", {}, ["tr", {}, ["th", {}, "A"], ["th", {}, "B"]]],
@@ -43,7 +43,7 @@ describe("table round-trip", () => {
   it("reads comark's `style:text-align` into the native cell align attr and back", () => {
     // Comark expresses alignment as `style:"text-align:X"` (its renderer ignores
     // a bare `align` attr), so that's the canonical round-trip shape.
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "table",
       {},
       [
@@ -65,7 +65,7 @@ describe("table round-trip", () => {
 
   it("reads a hand-authored native `align` attr and canonicalizes it to `style:text-align`", () => {
     const pm = tableSpec.fromComark(
-      ["table", {}, ["tbody", {}, ["tr", {}, ["td", { align: "right" }, "X"]]]] as ComarkElement,
+      ["table", {}, ["tbody", {}, ["tr", {}, ["td", { align: "right" }, "X"]]]] as ElementNode,
       helpers,
     )!;
     expect(pm.content?.[0]?.content?.[0]?.attrs).toEqual({ align: "right" });
@@ -82,7 +82,7 @@ describe("table round-trip", () => {
         "table",
         {},
         ["tbody", {}, ["tr", {}, ["td", { style: "text-align:center; color:red" }, "X"]]],
-      ] as ComarkElement,
+      ] as ElementNode,
       helpers,
     )!;
     expect(pm.content?.[0]?.content?.[0]?.attrs).toEqual({
@@ -92,7 +92,7 @@ describe("table round-trip", () => {
   });
 
   it("preserves colspan/rowspan as semantic attrs", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "table",
       {},
       ["tbody", {}, ["tr", {}, ["td", { colspan: 2 }, "merged"], ["td", { rowspan: 3 }, "tall"]]],
@@ -110,14 +110,14 @@ describe("table round-trip", () => {
         "table",
         {},
         ["tbody", {}, ["tr", {}, ["td", { colspan: 1, rowspan: 1 }, "x"]]],
-      ] as ComarkElement,
+      ] as ElementNode,
       helpers,
     )!;
     expect(pm.content?.[0]?.content?.[0]?.attrs).toBeUndefined();
   });
 
   it("preserves htmlAttrs on the table itself", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "table",
       { "class": "striped", "data-sortable": "true" },
       ["tbody", {}, ["tr", {}, ["td", {}, "x"]]],
@@ -144,7 +144,7 @@ describe("table round-trip", () => {
         },
       ],
     };
-    const out = tableSpec.toComark(pm, helpers) as ComarkElement;
+    const out = tableSpec.toComark(pm, helpers) as ElementNode;
     expect(out[2]?.[0]).toBe("thead");
     expect(out[3]?.[0]).toBe("tbody");
   });
@@ -166,7 +166,7 @@ describe("table round-trip", () => {
   });
 
   it("seeds a minimal cell for a rowless table (invalid PM otherwise)", () => {
-    const pm = tableSpec.fromComark(["table", {}] as ComarkElement, helpers)!;
+    const pm = tableSpec.fromComark(["table", {}] as ElementNode, helpers)!;
     expect(pm.content).toEqual([
       { type: "tableRow", content: [{ type: "tableCell", content: [{ type: "paragraph" }] }] },
     ]);
@@ -178,7 +178,7 @@ describe("table round-trip", () => {
         "table",
         {},
         ["tbody", {}, ["tr", {}, ["td", { colwidth: ["80", "120"] }, "x"]]],
-      ] as ComarkElement,
+      ] as ElementNode,
       helpers,
     )!;
     expect(pm.content?.[0]?.content?.[0]?.attrs?.colwidth).toEqual([80, 120]);
