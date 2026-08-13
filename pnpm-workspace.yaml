@@ -12,4 +12,3 @@ ignoreWorkspaceRootCheck: true
 
 minimumReleaseAgeExclude:
   - "comark-tiptap"
-  - "@typescript/native-preview*"
