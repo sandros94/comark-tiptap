@@ -42,13 +42,19 @@ const DOC_PM_NAME = "doc";
 const CODE_PM_NAME = "code";
 
 /*
- * comark's `parseMarkdown` applies streaming auto-close by default: dangling
- * markers at the tail of input that doesn't end in a newline get "closed"
- * (`text with **partial` gains a <strong>). That's correct for incremental /
- * streaming input but WRONG for the complete documents the editor always
- * parses — content routinely arrives without a trailing newline. Opt out.
+ * autoClose — comark's streaming auto-close "closes" dangling markers at the
+ * tail of input that doesn't end in a newline (`text with **partial` gains a
+ * <strong>). Right for incremental input, wrong for the complete documents
+ * the editor always parses — content routinely arrives without a trailing
+ * newline. Opt out.
+ *
+ * headingIds — auto-generated ids are DERIVED data: stored on the PM node
+ * they go stale the moment the heading text is edited (and `renderMarkdown`
+ * suppresses heading ids anyway). Skip generating them; explicit ids — from
+ * markdown `{id="…"}`, a supplied AST, or the DOM — still flow through
+ * `htmlAttrs` untouched.
  */
-const PARSE_OPTIONS = { autoClose: false } as const;
+const PARSE_OPTIONS = { autoClose: false, headingIds: false } as const;
 
 const isTextNode = (n: Node): n is string => typeof n === "string";
 const isCommentNode = (n: Node): n is CommentNode => Array.isArray(n) && n[0] === null;

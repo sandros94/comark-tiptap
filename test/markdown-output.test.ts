@@ -113,6 +113,36 @@ describe("markdown output — block nodes (upstream-drift pins)", () => {
     expect(out).toBe("# Title\n\nBody text.");
   });
 
+  // headingIds: false (PARSE_OPTIONS) — auto ids are derived data that go
+  // stale on the PM node when the heading is renamed; the editor doesn't
+  // store them. An explicit `{id="…"}` is user data and stays.
+  it("does not bake auto-generated heading ids into the document", async () => {
+    const editor = new Editor({ extensions: [ComarkKit], content: "# Hello World\n" });
+    editors.push(editor);
+    await nextUpdate(editor);
+    const heading = editor.getJSON().content?.[0];
+    expect(heading?.type).toBe("heading");
+    expect(heading?.attrs?.htmlAttrs ?? {}).toEqual({});
+    editor.destroy();
+  });
+
+  it("keeps an explicit heading id", async () => {
+    const editor = new Editor({
+      extensions: [ComarkKit],
+      content: '# Hello {id="custom"}\n',
+    });
+    editors.push(editor);
+    await nextUpdate(editor);
+    expect(editor.getJSON().content?.[0]?.attrs?.htmlAttrs).toEqual({ id: "custom" });
+    editor.destroy();
+  });
+
+  // comark 0.6 fix: image attributes survive alongside a title (comarkdown/comark#290).
+  it("renders an image with title AND extra attributes", async () => {
+    const src = '![alt](/a.png "My title"){width="100"}\n';
+    expect(norm(await roundTrip(src))).toBe('![alt](/a.png "My title"){width="100"}');
+  });
+
   // Pictures render as the `picture` directive since comark 0.6 and round-trip
   // through markdown (inline form exactly; block form re-absorbed by pictureSpec).
   it("round-trips an inline picture through markdown", async () => {
