@@ -10,28 +10,34 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@tiptap/core": "^3.22.4",
-    "@tiptap/extension-code-block": "^3.22.4",
-    "@tiptap/extension-image": "^3.22.4",
-    "@tiptap/extension-mention": "^3.22.4",
-    "@tiptap/extension-placeholder": "^3.22.4",
-    "@tiptap/extension-table": "^3.22.4",
-    "@tiptap/pm": "^3.22.4",
-    "@tiptap/starter-kit": "^3.22.4",
-    "@tiptap/vue-3": "^3.22.4",
-    "@vueuse/core": "^14.2.1",
+    "@tiptap/core": "^3.30.0",
+    "@tiptap/extension-code-block": "^3.30.0",
+    "@tiptap/extension-image": "^3.30.0",
+    "@tiptap/extension-mention": "^3.30.0",
+    "@tiptap/extension-placeholder": "^3.30.0",
+    "@tiptap/extension-table": "^3.30.0",
+    "@tiptap/pm": "^3.30.0",
+    "@tiptap/starter-kit": "^3.30.0",
+    "@tiptap/vue-3": "^3.30.0",
+    "@vueuse/core": "^14.4.0",
     "comark": "^0.6.2",
     "comark-tiptap": "workspace:*",
     "defu": "^6.1.7",
-    "reka-ui": "^2.9.6",
-    "vue": "^3.5.33"
+    "reka-ui": "^2.10.3",
+    "vue": "^3.5.41"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.103",
-    "@iconify-json/simple-icons": "^1.2.80",
-    "@nuxt/ui": "4.9.0",
-    "nuxt": "^4.4.8",
+    "@iconify-json/lucide": "^1.2.123",
+    "@iconify-json/simple-icons": "^1.2.93",
+    "@nuxt/ui": "4.10.0",
+    "@tiptap/extension-collaboration": "^3.30.0",
+    "@tiptap/extension-drag-handle": "^3.30.0",
+    "@tiptap/extension-drag-handle-vue-3": "^3.30.0",
+    "@tiptap/extension-node-range": "^3.30.0",
+    "@tiptap/markdown": "^3.30.0",
+    "@tiptap/y-tiptap": "^3.0.8",
+    "nuxt": "^4.5.2",
     "typescript": "^6.0.3",
-    "vue-tsc": "^3.3.6"
+    "vue-tsc": "^3.3.9"
   }
 }

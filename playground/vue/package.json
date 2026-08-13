@@ -9,20 +9,20 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@tiptap/core": "^3.22.4",
-    "@tiptap/extension-code-block": "^3.22.4",
-    "@tiptap/extension-image": "^3.22.4",
-    "@tiptap/extension-table": "^3.22.4",
-    "@tiptap/pm": "^3.22.4",
-    "@tiptap/starter-kit": "^3.22.4",
-    "@tiptap/vue-3": "^3.22.4",
+    "@tiptap/core": "^3.30.0",
+    "@tiptap/extension-code-block": "^3.30.0",
+    "@tiptap/extension-image": "^3.30.0",
+    "@tiptap/extension-table": "^3.30.0",
+    "@tiptap/pm": "^3.30.0",
+    "@tiptap/starter-kit": "^3.30.0",
+    "@tiptap/vue-3": "^3.30.0",
     "comark": "^0.6.2",
     "comark-tiptap": "workspace:*",
-    "vue": "^3.5.33"
+    "vue": "^3.5.41"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.1",
-    "vite": "^7.1.12",
-    "vue-tsc": "^3.3.6"
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vite": "^8.2.1",
+    "vue-tsc": "^3.3.9"
   }
 }
