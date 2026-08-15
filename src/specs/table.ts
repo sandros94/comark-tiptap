@@ -235,6 +235,10 @@ function isCellBlockTag(tag: unknown): boolean {
     tag === "pre" ||
     tag === "hr" ||
     tag === "table" ||
+    /* Dual-context atom: a bare `picture` as a direct cell child is a hoisted
+       block; parseBlocks keeps each in its own paragraph (a picture inside a
+       text run still buckets with its run, so both usages route correctly). */
+    tag === "picture" ||
     tag.match(/^h[1-6]$/) !== null
   );
 }

@@ -123,7 +123,6 @@ describe("markdown output — block nodes (upstream-drift pins)", () => {
     const heading = editor.getJSON().content?.[0];
     expect(heading?.type).toBe("heading");
     expect(heading?.attrs?.htmlAttrs ?? {}).toEqual({});
-    editor.destroy();
   });
 
   it("keeps an explicit heading id", async () => {
@@ -134,7 +133,6 @@ describe("markdown output — block nodes (upstream-drift pins)", () => {
     editors.push(editor);
     await nextUpdate(editor);
     expect(editor.getJSON().content?.[0]?.attrs?.htmlAttrs).toEqual({ id: "custom" });
-    editor.destroy();
   });
 
   // comark 0.6 fix: image attributes survive alongside a title (comarkdown/comark#290).
@@ -149,6 +147,20 @@ describe("markdown output — block nodes (upstream-drift pins)", () => {
     const src = "before :picture[![A](/a.png)] after\n";
     const out = norm(await roundTrip(src));
     expect(out).toBe("before :picture[![A](/a.png)] after");
+  });
+
+  it("round-trips a LINKED inline picture (the mark keeps its paragraph)", async () => {
+    // A marked picture must NOT hoist to block position — the link wrapper
+    // stays inline inside its paragraph.
+    const src = "[:picture[![A](/a.png)]](/x)\n";
+    expect(norm(await roundTrip(src))).toBe("[:picture[![A](/a.png)]](/x)");
+  });
+
+  it("round-trips two adjacent standalone pictures without merging", async () => {
+    const src = "::picture\n![A](/a.png)\n::\n\n::picture\n![B](/b.png)\n::\n";
+    const once = norm(await roundTrip(src));
+    expect(once).toBe("::picture\n![A](/a.png)\n::\n\n::picture\n![B](/b.png)\n::");
+    expect(norm(await roundTrip(once))).toBe(once);
   });
 
   it("round-trips a block picture (sources + img) through markdown", async () => {

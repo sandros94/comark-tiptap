@@ -116,6 +116,8 @@ export interface MarkSpec {
 
 /** Recursion helpers handed to every `toComark` / `fromComark` for nested children. */
 export interface ComarkHelpers {
+  /** Look up a node spec by its ProseMirror type name (`Map`-backed). */
+  getNodeSpec: (pmName: string) => NodeSpec | undefined;
   /** ProseMirror block children → Comark nodes. */
   serializeBlocks: (content: JSONContent[] | undefined) => Node[];
   /** ProseMirror inline children (text, marks, inline atoms) → Comark nodes. */

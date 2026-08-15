@@ -36,15 +36,17 @@ export const pictureSpec: NodeSpec = {
     let img: Record<string, unknown> | null = null;
     /* comark's block markdown form wraps the inner `![img]` in a paragraph,
        so its reparse is ['picture',{},['source',…],['p',{},['img',…]]] —
-       descend through wrapper elements instead of only direct children. */
+       descend through that one known `p` wrapper ONLY. Anything else (a
+       nested picture, a linked img) is left alone rather than absorbed into
+       this picture's own sources/img. */
     const walk = (nodes: readonly Node[]): void => {
       for (const child of nodes) {
         if (!Array.isArray(child) || typeof child[0] !== "string") continue;
         const [tag, childAttrs, ...rest] = child as ElementNode;
         if (tag === "source") sources.push(cleanAttrs(childAttrs));
-        /* First img wins; picture allows exactly one. */ else if (tag === "img") {
-          if (img === null) img = cleanAttrs(childAttrs);
-        } else walk(rest);
+        /* First img wins; picture allows exactly one. */ else if (tag === "img" && img === null) {
+          img = cleanAttrs(childAttrs);
+        } else if (tag === "p") walk(rest);
       }
     };
     walk(children);

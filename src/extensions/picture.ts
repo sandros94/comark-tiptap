@@ -45,9 +45,10 @@ function displayBag(bag: AttrBag, resolve: ResolveSrc | undefined): Record<strin
  * Opaque inline atom for `<picture>`: sources and the inner img ride
  * verbatim in `attrs`; selectable/deletable, not editable from within.
  * Inline is forced — comark emits pictures both block-level and inside text
- * runs, and a block-group node would be schema-dropped in the latter (block
- * pictures round-trip paragraph-wrapped instead, like bare imgs). The
- * `htmlAttrs` bag comes globally from `ComarkAttrs`.
+ * runs, and a block-group node would be schema-dropped in the latter. On
+ * serialization a standalone picture hoists back out of its paragraph
+ * wrapper to a top-level element (`pictureSpec`'s `context: 'inline-block'`).
+ * The `htmlAttrs` bag comes globally from `ComarkAttrs`.
  */
 export const ComarkPicture = Node.create<ComarkPictureOptions>({
   name: "picture",

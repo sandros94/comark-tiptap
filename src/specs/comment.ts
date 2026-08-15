@@ -1,5 +1,4 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
-/* Comark tuple type aliased so the Tiptap extension can keep the name `ComarkComment` (in `extensions/comment.ts`) without a merged-declaration clash. */
 import type { CommentNode, ElementNode, JSONContent, NodeSpec } from "../types";
 
 const SEMANTIC_KEYS = ["text"] as const;

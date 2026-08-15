@@ -101,6 +101,20 @@ describe("pictureSpec", () => {
     ]);
   });
 
+  it("does NOT absorb a nested picture's img (descends p wrappers only)", () => {
+    // A picture directive nested inside another parses to a picture child;
+    // the outer's img must come from its own (p-wrapped) img, not the inner's.
+    const nested: ElementNode = [
+      "picture",
+      {},
+      ["picture", {}, ["img", { src: "/inner.png", alt: "Inner" }]],
+      ["p", {}, ["img", { src: "/outer.png", alt: "Outer" }]],
+    ];
+    const pm = pictureSpec.fromComark(nested, helpers)!;
+    expect(pm.attrs?.img).toEqual({ src: "/outer.png", alt: "Outer" });
+    expect(pm.attrs?.sources).toEqual([]);
+  });
+
   it("round-trips an inline picture inside a paragraph", () => {
     const original: ElementNode = [
       "p",

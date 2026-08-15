@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { paragraphSpec } from "../../src/specs/paragraph";
+import { pictureSpec } from "../../src/specs/picture";
 import { createSerializer } from "../../src/serializer";
 import type { ElementNode } from "../../src/types";
 import { tableCellSpec, tableHeaderSpec, tableRowSpec, tableSpec } from "../../src/specs/table";
@@ -182,5 +183,45 @@ describe("table round-trip", () => {
       helpers,
     )!;
     expect(pm.content?.[0]?.content?.[0]?.attrs?.colwidth).toEqual([80, 120]);
+  });
+});
+
+describe("cells with dual-context atoms (picture)", () => {
+  const picHelpers = createSerializer({
+    nodes: [paragraphSpec, tableSpec, tableRowSpec, tableHeaderSpec, tableCellSpec, pictureSpec],
+    marks: [],
+  });
+  const PIC_A = ["picture", {}, ["img", { src: "/a.png" }]] as ElementNode;
+  const PIC_B = ["picture", {}, ["img", { src: "/b.png" }]] as ElementNode;
+
+  it("round-trips a cell holding two picture-only paragraphs", () => {
+    // Each paragraph hoists to a bare picture on the way out; on the way
+    // back each bare picture must regain its OWN paragraph, not merge.
+    const cell = {
+      type: "tableCell",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "picture", attrs: { sources: [], img: { src: "/a.png" } } }],
+        },
+        {
+          type: "paragraph",
+          content: [{ type: "picture", attrs: { sources: [], img: { src: "/b.png" } } }],
+        },
+      ],
+    };
+    const el = tableCellSpec.toComark(cell, picHelpers) as ElementNode;
+    expect(el).toEqual(["td", {}, PIC_A, PIC_B]);
+    const back = tableCellSpec.fromComark(el, picHelpers)!;
+    expect(back.content).toHaveLength(2);
+    expect(back.content?.map((b) => b.type)).toEqual(["paragraph", "paragraph"]);
+  });
+
+  it("keeps a picture inside a cell's text run in ONE paragraph", () => {
+    const el = ["td", {}, "see ", PIC_A] as ElementNode;
+    const back = tableCellSpec.fromComark(el, picHelpers)!;
+    expect(back.content).toHaveLength(1);
+    expect(back.content?.[0]?.type).toBe("paragraph");
+    expect(back.content?.[0]?.content).toHaveLength(2);
   });
 });

@@ -57,6 +57,26 @@ describe("AST round-trip", () => {
     editor.destroy();
   });
 
+  it("keeps ADJACENT standalone pictures separate (idempotent round-trip)", () => {
+    // Two loose pictures buffer-merging into one paragraph would make
+    // getAst() → setComarkAst() lossy; each must keep its own paragraph.
+    const other = [
+      "picture",
+      {},
+      ["img", { src: "public/b.jpg", alt: "b" }],
+    ] as MarkdownDocument["nodes"][number];
+    const editor = makeEditor();
+    editor.commands.setComarkAst(tree([PICTURE, other]));
+    const once = getAst(editor);
+    expect(once.nodes).toEqual([PICTURE, other]);
+    // PM side: two separate paragraphs, one atom each.
+    expect(editor.getJSON().content?.map((b) => b.content?.length)).toEqual([1, 1]);
+    // Feeding the AST back must not merge them either.
+    editor.commands.setComarkAst(once);
+    expect(getAst(editor).nodes).toEqual([PICTURE, other]);
+    editor.destroy();
+  });
+
   it("drops ONLY the picture node when `picture: false`, reporting via onError", () => {
     // Regression guard: a schema-unknown node used to fail Tiptap's content
     // check and reset the WHOLE document, not just the offending node.

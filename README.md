@@ -118,6 +118,9 @@ ComarkKit.configure({
 
 Markdown output round-trips too (comark 0.6+): pictures render as the `picture` directive — the inline form (`:picture[![alt](src)]`) reparses exactly, and the block form's paragraph-wrapped img is re-absorbed on parse.
 
+> [!WARNING]
+> Pictures inside **table cells** don't survive _markdown_ output: comark renders the picture as a multi-line block directive and its table renderer space-joins cell content, so the directive syntax is destroyed. AST round-trips are unaffected — keep table+picture documents in AST form.
+
 ## Vue — `comark-tiptap/vue`
 
 No UI-library dependency, no design-system opinions — just the editor primitives.

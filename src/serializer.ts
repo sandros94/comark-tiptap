@@ -108,6 +108,12 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
     return node?.context === "inline" || node?.context === "inline-block";
   }
 
+  /* A dual-context atom (picture): inline in a text run, block when loose. */
+  function isInlineBlockElement(el: ElementNode): boolean {
+    if (pickMarkForTag(el)) return false;
+    return pickNodeForTag(el)?.context === "inline-block";
+  }
+
   // PM JSON → Comark
 
   function serializeBlocks(content: JSONContent[] | undefined): Node[] {
@@ -225,7 +231,8 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
       inlineBuf = [];
     };
 
-    for (const child of children) {
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i]!;
       if (isTextNode(child)) {
         /* Comark's autoUnwrap drops the paragraph wrapper around a lone
            paragraph, so bucket consecutive inlines into one paragraph. */
@@ -246,6 +253,24 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
 
       // Inline element (mark or inline-context node)? Buffer it.
       if (isInlineElementNode(child)) {
+        /* A loose dual-context atom (a standalone `picture`, from the block
+           directive parse or the sole-child hoist) gets its OWN paragraph
+           unless it belongs to a text run — the buffer is already open, or
+           the next sibling is a run inline (text / non-atom inline element).
+           Without this, adjacent standalone pictures would merge into one
+           paragraph and getAst() → setComarkAst() would not be idempotent. */
+        if (inlineBuf.length === 0 && isInlineBlockElement(child)) {
+          const next = children[i + 1];
+          const nextIsRunInline =
+            next !== undefined &&
+            ((isTextNode(next) && next.length > 0) ||
+              (isElementNode(next) && isInlineElementNode(next) && !isInlineBlockElement(next)));
+          if (!nextIsRunInline) {
+            const inlines = parseInlines([child]);
+            if (inlines.length > 0) out.push({ type: "paragraph", content: inlines });
+            continue;
+          }
+        }
         inlineBuf.push(child);
         continue;
       }
@@ -314,6 +339,7 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
   }
 
   const helpers: ComarkHelpers = {
+    getNodeSpec: (pmName) => nodeByPmName.get(pmName),
     serializeBlocks,
     serializeInlines,
     parseBlocks,
