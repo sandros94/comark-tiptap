@@ -25,6 +25,14 @@ export function isMarkdownDocumentLike(v: unknown): v is MarkdownDocument {
 }
 
 /**
+ * Transaction-meta key the bindings stamp on outside-in model applies, so
+ * their `onUpdate` can skip re-serializing a value they just applied.
+ *
+ * @internal
+ */
+export const MODEL_APPLY_META = "comarkModelApply";
+
+/**
  * Apply a content value with the command matching its flavor. Markdown strings
  * go async (`setComarkMarkdown`); an object with a `'markdown'` flavor falls
  * through to `setContent`, which auto-detects `MarkdownDocument` vs PM JSON.
@@ -40,6 +48,7 @@ export function applyContent(
   const baseOpts = {
     emitUpdate: options.emitUpdate ?? true,
     errorOnInvalidContent: options.errorOnInvalidContent,
+    transactionMeta: options.transactionMeta,
   };
   switch (contentType) {
     case "ast":

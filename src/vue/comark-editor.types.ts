@@ -9,6 +9,7 @@ import type {
   SetterInput,
 } from "comark-tiptap";
 import type { AnyExtension } from "@tiptap/core";
+import type { Transaction } from "@tiptap/pm/state";
 import type { SetContentOptions, UseComarkEditorOptions } from "./use-comark-editor";
 import type { ComarkVueComponentExports } from "./define-component";
 
@@ -70,7 +71,7 @@ export type ComarkEditorModelModifiers = {
 export interface ComarkEditorEmits {
   (e: "update:modelValue", value: ContentValue): void;
   (e: "ready", editor: Editor): void;
-  (e: "update", editor: Editor): void;
+  (e: "update", editor: Editor, transaction: Transaction): void;
 }
 
 /**

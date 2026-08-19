@@ -129,6 +129,101 @@ describe("<ComarkEditor> (React, controlled)", () => {
     expect(onChange.mock.calls.at(-1)?.[0] as string).toContain("# Typed");
   });
 
+  it("drops a stale markdown render that resolves after a newer one", async () => {
+    // Two renders in flight: the SECOND resolves first (it describes the newer
+    // state). The first must not overwrite it when it finally lands — value
+    // equality alone can't tell them apart, so the push carries a sequence.
+    let editor: Editor | null = null;
+    const onChange = vi.fn<(v: ContentValue) => void>();
+    render(
+      <ComarkEditor
+        value="# A"
+        contentType="markdown"
+        onChange={onChange}
+        onReady={(e) => {
+          editor = e;
+        }}
+      />,
+    );
+    await waitFor(() => expect(editor).not.toBeNull());
+    const ed = editor as unknown as Editor;
+    await waitFor(() => expect(ed.getText()).toContain("A"));
+
+    const resolvers: Array<(md: string) => void> = [];
+    ed.storage.comark.getMarkdown = (): Promise<string> =>
+      new Promise<string>((r) => resolvers.push(r));
+    onChange.mockClear();
+
+    const appendParagraph = (text: string): void => {
+      ed.commands.insertContentAt(ed.state.doc.content.size, {
+        type: "paragraph",
+        content: [{ type: "text", text }],
+      });
+    };
+    await act(async () => {
+      appendParagraph("one");
+      await tick();
+    });
+    await act(async () => {
+      appendParagraph("two");
+      await tick();
+    });
+    expect(resolvers).toHaveLength(2);
+
+    await act(async () => {
+      resolvers[1]!("# fresh\n");
+      await tick();
+    });
+    expect(onChange.mock.calls.at(-1)?.[0]).toBe("# fresh\n");
+    const settled = onChange.mock.calls.length;
+
+    await act(async () => {
+      resolvers[0]!("# stale\n");
+      await tick();
+    });
+    expect(onChange.mock.calls.length).toBe(settled);
+  });
+
+  it("skips serialization for the echo update of an outside-in value change", async () => {
+    let editor: Editor | null = null;
+    let setMd: (v: string) => void = () => {};
+    const onChange = vi.fn<(v: ContentValue) => void>();
+    function Host(): React.ReactNode {
+      const [md, setM] = useState("# A");
+      setMd = setM;
+      return (
+        <ComarkEditor
+          value={md}
+          contentType="markdown"
+          onChange={onChange}
+          onReady={(e) => {
+            editor = e;
+          }}
+        />
+      );
+    }
+    render(<Host />);
+    await waitFor(() => expect(editor).not.toBeNull());
+    const ed = editor as unknown as Editor;
+    await waitFor(() => expect(ed.getText()).toContain("A"));
+
+    const renderMd = vi.spyOn(ed.storage.comark, "getMarkdown");
+    onChange.mockClear();
+
+    await act(async () => {
+      setMd("## Outside In");
+      await tick();
+    });
+    await waitFor(() => expect(ed.getText()).toContain("Outside In"));
+    await act(async () => {
+      await tick();
+    });
+
+    expect(renderMd).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+    renderMd.mockRestore();
+  });
+
   it("does not clobber an in-flight edit when an unrelated re-render lands (lagging value)", async () => {
     // Parent holds `value` fixed (does NOT reflect onChange) — a debounced /
     // validated store. An unrelated re-render must not re-apply the stale value

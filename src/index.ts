@@ -19,7 +19,13 @@ export type {
 } from "./types";
 
 /* @internal — content-routing helpers shared by the framework bindings; not part of the public API. */
-export { applyContent, isMarkdownDocumentLike, readByFlavor, safeJson } from "./content";
+export {
+  applyContent,
+  isMarkdownDocumentLike,
+  MODEL_APPLY_META,
+  readByFlavor,
+  safeJson,
+} from "./content";
 
 export { ComarkKit, type ComarkKitOptions } from "./kit";
 

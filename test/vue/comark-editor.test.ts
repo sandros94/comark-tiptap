@@ -10,7 +10,7 @@
  * (no `@vue/test-utils` dep). A stable function ref captures the
  * component's `expose()` proxy so tests can reach the live editor.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createApp,
   defineComponent,
@@ -52,7 +52,10 @@ interface Mounted {
   container: HTMLElement;
   model: ShallowRef<ContentValue | undefined>;
   editor: () => Editor | undefined;
+  expose: () => ComarkEditorExpose | null;
   updates: () => number;
+  /** `update:modelValue` emissions — outside-in writes to `model` don't count. */
+  modelEmits: () => number;
   slotSawEditor: () => boolean;
 }
 
@@ -65,6 +68,7 @@ function mount(options: MountOptions): Mounted {
     exposeRef.value = el as ComarkEditorExpose | null;
   };
   let updateCount = 0;
+  let modelEmitCount = 0;
   let slotSaw = false;
 
   const Host = defineComponent({
@@ -79,6 +83,7 @@ function mount(options: MountOptions): Mounted {
         if (options.withModel !== false) {
           props.modelValue = model.value;
           props["onUpdate:modelValue"] = (v: ContentValue) => {
+            modelEmitCount++;
             model.value = v;
           };
           props.modelModifiers = options.modifiers ?? {};
@@ -109,7 +114,9 @@ function mount(options: MountOptions): Mounted {
     container,
     model,
     editor: (): Editor | undefined => exposeRef.value?.editor,
+    expose: (): ComarkEditorExpose | null => exposeRef.value,
     updates: (): number => updateCount,
+    modelEmits: (): number => modelEmitCount,
     slotSawEditor: (): boolean => slotSaw,
   };
 }
@@ -220,6 +227,106 @@ describe("<ComarkEditor> (Vue, v-model)", () => {
     await flush();
     await flush();
     expect(m.updates()).toBe(settled);
+  });
+
+  it("drops a stale markdown render that resolves after a newer one", async () => {
+    // Two renders in flight: the SECOND resolves first (it describes the newer
+    // state). The first must not overwrite it when it finally lands — value
+    // equality alone can't tell them apart, so the push carries a sequence.
+    const m = mount({ initial: "# A", modifiers: { markdown: true } });
+    live.push(m);
+    const editor = await readyEditor(m);
+    await flush();
+
+    const resolvers: Array<(md: string) => void> = [];
+    editor.storage.comark.getMarkdown = (): Promise<string> =>
+      new Promise<string>((r) => resolvers.push(r));
+
+    editor.commands.insertContentAt(editor.state.doc.content.size, {
+      type: "paragraph",
+      content: [{ type: "text", text: "one" }],
+    });
+    await flush();
+    editor.commands.insertContentAt(editor.state.doc.content.size, {
+      type: "paragraph",
+      content: [{ type: "text", text: "two" }],
+    });
+    await flush();
+    expect(resolvers).toHaveLength(2);
+
+    resolvers[1]!("# fresh\n");
+    await flush();
+    expect(m.model.value).toBe("# fresh\n");
+    const settled = m.modelEmits();
+
+    resolvers[0]!("# stale\n");
+    await flush();
+    expect(m.model.value).toBe("# fresh\n");
+    expect(m.modelEmits()).toBe(settled);
+  });
+
+  it("coalesces same-task edits into a single model emission (json)", async () => {
+    const docA: JSONContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "AAA" }] }],
+    };
+    const docB: JSONContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "BBB" }] }],
+    };
+    const docC: JSONContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "CCC" }] }],
+    };
+    const m = mount({ initial: docA, modifiers: { json: true } });
+    live.push(m);
+    const editor = await readyEditor(m);
+    await flush();
+    const before = m.modelEmits();
+
+    editor.commands.setContent(docB);
+    editor.commands.setContent(docC);
+    await flush();
+
+    expect(m.modelEmits()).toBe(before + 1);
+    expect(JSON.stringify(m.model.value)).toContain("CCC");
+  });
+
+  it("skips serialization for the echo update of an outside-in model change", async () => {
+    const m = mount({ initial: "# A", modifiers: { markdown: true } });
+    live.push(m);
+    const editor = await readyEditor(m);
+    await flush();
+
+    const render = vi.spyOn(editor.storage.comark, "getMarkdown");
+    const before = m.modelEmits();
+
+    m.model.value = "## Outside In";
+    await nextTick();
+    await flush();
+    await flush();
+
+    expect(editor.getText()).toContain("Outside In");
+    expect(render).not.toHaveBeenCalled();
+    expect(m.modelEmits()).toBe(before);
+    render.mockRestore();
+  });
+
+  it("still emits for a setContent call made through the exposed instance API", async () => {
+    // The skip is keyed on the watcher's own tag — an imperative setter is a
+    // regular edit and must round-trip back to the model.
+    const m = mount({ initial: "# A", modifiers: { markdown: true } });
+    live.push(m);
+    await readyEditor(m);
+    await flush();
+    const before = m.modelEmits();
+
+    await m.expose()!.setContent!("# Imperative");
+    await flush();
+    await flush();
+
+    expect(m.modelEmits()).toBe(before + 1);
+    expect(m.model.value as string).toContain("# Imperative");
   });
 
   it("renders the default slot with the live editor", async () => {

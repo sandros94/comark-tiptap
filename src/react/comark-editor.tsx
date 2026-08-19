@@ -1,7 +1,9 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { EditorContent, type Editor } from "@tiptap/react";
 import type { AnyExtension } from "@tiptap/core";
+import type { Transaction } from "@tiptap/pm/state";
 import {
+  MODEL_APPLY_META,
   readByFlavor,
   safeJson,
   type ComarkErrorHandler,
@@ -28,7 +30,7 @@ export interface ComarkEditorProps {
   /** Fired with the editor's content in `contentType` flavor on every edit. */
   onChange?: (value: ContentValue) => void;
   onReady?: (editor: Editor) => void;
-  onUpdate?: (editor: Editor) => void;
+  onUpdate?: (editor: Editor, transaction: Transaction) => void;
   /**
    * Observe async parse / render / AST-JSON failures the kit otherwise
    * swallows to `console.warn`.
@@ -107,13 +109,24 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
      stamps the shadow, so the wave a value update triggers doesn't bounce back. */
   const shadow = useRef<string | null>(null);
 
+  /* Push scheduling: a burst of updates in one task collapses into a single
+     serialize+emit on the next microtask, reading the editor's latest state.
+     `pushSeq` invalidates in-flight async (markdown) renders — every
+     doc-changing update and every outside-in apply bumps it, so a render that
+     resolves after a newer one started is dropped instead of emitted. */
+  const pushQueued = useRef(false);
+  const pushSeq = useRef(0);
+
   /* `content` wins as the explicit seed; else the controlled value's initial. */
   const seedAtMount = content !== undefined ? content : value;
 
   const pushValueFromEditor = async (e: Editor): Promise<void> => {
+    if (e.isDestroyed) return;
     if (contentType === "markdown") {
+      const seq = pushSeq.current;
       try {
         const md = await e.storage.comark.getMarkdown();
+        if (seq !== pushSeq.current) return;
         if (md === shadow.current) return;
         shadow.current = md;
         onChange?.(md);
@@ -132,15 +145,29 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
 
   const initShadow = async (e: Editor): Promise<void> => {
     if (contentType === "markdown") {
+      const seq = pushSeq.current;
       try {
-        shadow.current = await e.storage.comark.getMarkdown();
+        const md = await e.storage.comark.getMarkdown();
+        if (seq !== pushSeq.current) return;
+        shadow.current = md;
       } catch (err) {
+        if (seq !== pushSeq.current) return;
         shadow.current = null;
         e.storage.comark.onError?.(err, { phase: "render" });
       }
       return;
     }
     shadow.current = safeJson(readByFlavor(e, contentType));
+  };
+
+  // Collapse a burst of updates into one push on the next microtask.
+  const schedulePush = (e: Editor): void => {
+    if (pushQueued.current) return;
+    pushQueued.current = true;
+    queueMicrotask(() => {
+      pushQueued.current = false;
+      void pushValueFromEditor(e);
+    });
   };
 
   const internal = useComarkEditor({
@@ -165,9 +192,14 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
       }
       onReady?.(e);
     },
-    onUpdate: (e) => {
-      onUpdate?.(e);
-      if (onChange) void pushValueFromEditor(e);
+    onUpdate: (e, transaction) => {
+      onUpdate?.(e, transaction);
+      if (!onChange) return;
+      pushSeq.current++;
+      /* Echo of a value the effect just applied — the controlled value already
+         holds it, so skip the serialize-and-compare entirely. */
+      if (transaction.getMeta(MODEL_APPLY_META)) return;
+      schedulePush(e);
     },
   });
 
@@ -188,7 +220,10 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
       if (j === shadow.current) return;
       shadow.current = j;
     }
-    void setContent(value, { contentType });
+    /* Bump before applying: a render still in flight describes a state older
+       than the value being pushed in and must not clobber it. */
+    pushSeq.current++;
+    void setContent(value, { contentType, transactionMeta: { [MODEL_APPLY_META]: true } });
   }, [value, editor, contentType, setContent]);
 
   if (!editor) return <div data-comark-editor="">{fallback ?? null}</div>;

@@ -16,6 +16,7 @@
 import { Editor, type JSONContent } from "@tiptap/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComarkKit } from "../src/kit";
+import type { MarkdownDocument } from "../src/types";
 
 /** Wait for the editor's next `update` event. */
 function nextUpdate(editor: Editor, timeoutMs = 500): Promise<void> {
@@ -584,6 +585,77 @@ describe("ComarkSerializer overrides — Comark AST objects auto-detected", () =
     expect(blocks[0]?.type).toBe("heading");
     expect(blocks[0]?.attrs?.level).toBe(2);
     expect(editor.storage.comark.frontmatter).toEqual({ title: "from-tree" });
+  });
+});
+
+describe("ComarkSerializer — `transactionMeta`", () => {
+  // Meta the bindings ride on their outside-in applies so the echo `update`
+  // can be told apart from a user edit.
+
+  it("stamps the meta on the transaction that applies object content", () => {
+    const editor = track(makeEditor());
+    const seen: unknown[] = [];
+    editor.on("update", ({ transaction }) => seen.push(transaction.getMeta("foo")));
+
+    editor.commands.setContent(
+      {
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "tagged" }] }],
+      } satisfies JSONContent,
+      { transactionMeta: { foo: 1 } },
+    );
+
+    expect(seen).toEqual([1]);
+  });
+
+  it("carries the meta across the async markdown hop to the eventual apply", async () => {
+    const editor = track(makeEditor());
+    const seen: unknown[] = [];
+    editor.on("update", ({ transaction }) => seen.push(transaction.getMeta("foo")));
+
+    editor.commands.setContent("# Late\n", { transactionMeta: { foo: 2 } });
+    await nextUpdate(editor);
+
+    expect(getDoc(editor).content?.[0]?.type).toBe("heading");
+    expect(seen).toEqual([2]);
+  });
+});
+
+describe("ComarkSerializer — `getAst` memo", () => {
+  it("returns the same reference while the doc and frontmatter are unchanged", () => {
+    const editor = track(makeEditor({ content: "seed", contentType: "html" }));
+    expect(editor.storage.comark.getAst()).toBe(editor.storage.comark.getAst());
+  });
+
+  it("recomputes after an edit changes the doc", () => {
+    const editor = track(makeEditor({ content: "seed", contentType: "html" }));
+    const before = editor.storage.comark.getAst();
+
+    editor.commands.insertContentAt(editor.state.doc.content.size, {
+      type: "paragraph",
+      content: [{ type: "text", text: "more" }],
+    });
+
+    expect(editor.storage.comark.getAst()).not.toBe(before);
+  });
+
+  it("recomputes when setComarkAst installs fresh frontmatter over an identical doc", () => {
+    const editor = track(makeEditor());
+    const tree: MarkdownDocument = {
+      nodes: [["p", {}, "same"]],
+      frontmatter: { title: "T" },
+      meta: {},
+    };
+    editor.commands.setComarkAst(tree);
+    const before = editor.storage.comark.getAst();
+
+    // Same document shape, but the storage frontmatter/meta objects are
+    // replaced by fresh spreads — the memo key must follow them.
+    editor.commands.setComarkAst(tree);
+    const after = editor.storage.comark.getAst();
+
+    expect(after).not.toBe(before);
+    expect(after).toEqual(before);
   });
 });
 

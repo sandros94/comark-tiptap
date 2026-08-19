@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import type { AnyExtension, Content, EditorOptions } from "@tiptap/core";
+import type { Transaction } from "@tiptap/pm/state";
 import {
   applyContent,
   ComarkKit,
@@ -41,7 +42,11 @@ export interface UseComarkEditorOptions {
    */
   onError?: ComarkErrorHandler;
   onCreate?: (editor: Editor) => void;
-  onUpdate?: (editor: Editor) => void;
+  /**
+   * Called on every transaction that changes the document. Receives the
+   * editor plus the update event's transaction (`getMeta` readable).
+   */
+  onUpdate?: (editor: Editor, transaction: Transaction) => void;
   onDestroy?: () => void;
 }
 
@@ -136,8 +141,8 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
         }
         cbs.current.onCreate?.(e as Editor);
       },
-      onUpdate({ editor: e }) {
-        cbs.current.onUpdate?.(e as Editor);
+      onUpdate({ editor: e, transaction }) {
+        cbs.current.onUpdate?.(e as Editor, transaction);
       },
       onDestroy() {
         cbs.current.onDestroy?.();

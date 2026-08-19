@@ -1,4 +1,5 @@
 import type { AnyExtension, Content, EditorOptions } from "@tiptap/core";
+import type { Transaction } from "@tiptap/pm/state";
 import { Editor } from "@tiptap/vue-3";
 import {
   applyContent,
@@ -88,8 +89,11 @@ export interface UseComarkEditorOptions {
 
   /** Called once when the editor instance has been created. */
   onCreate?: (editor: Editor) => void;
-  /** Called on every transaction that changes the document. */
-  onUpdate?: (editor: Editor) => void;
+  /**
+   * Called on every transaction that changes the document. Receives the
+   * editor plus the update event's transaction (`getMeta` readable).
+   */
+  onUpdate?: (editor: Editor, transaction: Transaction) => void;
   /** Called when the editor instance is being destroyed. */
   onDestroy?: () => void;
 }
@@ -234,8 +238,8 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
       onCreate({ editor: e }) {
         onCreate?.(e as Editor);
       },
-      onUpdate({ editor: e }) {
-        onUpdate?.(e as Editor);
+      onUpdate({ editor: e, transaction }) {
+        onUpdate?.(e as Editor, transaction);
       },
       onDestroy() {
         onDestroy?.();

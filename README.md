@@ -46,7 +46,7 @@ const editor = new Editor({
   content: "# Hello\n\n::alert\nHi\n::", // markdown — parsed async, see below
 });
 
-editor.storage.comark.getAst(); // MarkdownDocument (sync)
+editor.storage.comark.getAst(); // MarkdownDocument (sync; memoized snapshot — read-only)
 await editor.storage.comark.getMarkdown(); // string (async — comark/render)
 editor.commands.setComarkMarkdown("# Hi"); // markdown → parseMarkdown
 editor.commands.setComarkAst(tree); // MarkdownDocument → serializer dispatch table

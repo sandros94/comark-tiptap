@@ -5,7 +5,7 @@ import {
   type Editor,
   type JSONContent,
 } from "@tiptap/core";
-import type { Schema } from "@tiptap/pm/model";
+import type { Node as ProseMirrorNode, Schema } from "@tiptap/pm/model";
 import { parseMarkdown } from "comark";
 import { renderMarkdown } from "comark/render";
 import { isMarkdownDocumentLike } from "./content";
@@ -445,6 +445,8 @@ declare module "@tiptap/core" {
      * @default 'markdown'
      */
     contentType?: "markdown" | "html" | "json";
+    /** Meta entries stamped on the applying transaction, readable via `transaction.getMeta(key)`. */
+    transactionMeta?: Record<string, unknown>;
   }
   interface EditorOptions {
     /**
@@ -477,6 +479,13 @@ export interface SetComarkContentOptions {
    * omitted, the editor's `enableContentCheck` setting decides.
    */
   errorOnInvalidContent?: boolean;
+
+  /**
+   * Meta entries stamped on the transaction that applies the content
+   * (readable in `onUpdate` via `transaction.getMeta(key)`). On the async
+   * markdown path the entries ride to the eventual apply transaction.
+   */
+  transactionMeta?: Record<string, unknown>;
 }
 
 /** Which operation raised an error handed to a {@link ComarkErrorHandler}. */
@@ -519,7 +528,17 @@ export interface ComarkSerializerStorage {
    * `getAst` / `getMarkdown` instead of reaching in directly.
    */
   editor: Editor | null;
-  /** Read the editor's current content as a Comark AST. */
+  /** Single-slot `getAst` memo, keyed on PM doc identity plus frontmatter/meta reference identity. @internal */
+  astCache: {
+    doc: ProseMirrorNode;
+    frontmatter: Record<string, unknown>;
+    meta: Record<string, unknown>;
+    ast: MarkdownDocument;
+  } | null;
+  /**
+   * Read the editor's current content as a Comark AST. The returned document
+   * is a shared snapshot — treat it as read-only.
+   */
   getAst(): MarkdownDocument;
   /** Read the editor's current content as Comark markdown. */
   getMarkdown(): Promise<string>;
@@ -595,12 +614,28 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       meta: {},
       editor: null,
       onError: undefined,
+      astCache: null,
       getAst(this: ComarkSerializerStorage): MarkdownDocument {
         if (!this.editor) throw new Error("[comark] editor not yet attached");
-        return pmDocToComark(this.editor.getJSON() as JSONContent, this.helpers, {
+        /* The PM doc is immutable and `setComarkAst` / `setContent` replace
+           frontmatter/meta with fresh spreads, so reference identity on the
+           three inputs fully determines the result. */
+        const doc = this.editor.state.doc;
+        const cache = this.astCache;
+        if (
+          cache &&
+          cache.doc === doc &&
+          cache.frontmatter === this.frontmatter &&
+          cache.meta === this.meta
+        ) {
+          return cache.ast;
+        }
+        const ast = pmDocToComark(this.editor.getJSON() as JSONContent, this.helpers, {
           frontmatter: this.frontmatter,
           meta: this.meta,
         });
+        this.astCache = { doc, frontmatter: this.frontmatter, meta: this.meta, ast };
+        return ast;
       },
       async getMarkdown(this: ComarkSerializerStorage): Promise<string> {
         const tree = this.getAst();
@@ -698,6 +733,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           return commands.setContent(doc, {
             emitUpdate: options?.emitUpdate ?? true,
             errorOnInvalidContent: options?.errorOnInvalidContent,
+            transactionMeta: options?.transactionMeta,
           });
         },
       setComarkMarkdown:
@@ -722,6 +758,13 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
          contentType (strings only): 'html' → Tiptap HTML, sync; 'json' → strict PM
          JSON, sync (AST strings belong on setComarkAst). */
       setContent: (content, options) => (props) => {
+        /* Command chains share one transaction, so stamping here covers every
+           synchronous branch below (baseSetContent mutates this same `tr`). */
+        if (options?.transactionMeta) {
+          for (const [key, value] of Object.entries(options.transactionMeta)) {
+            props.tr.setMeta(key, value);
+          }
+        }
         /* Inline the AST application here (don't call editor.commands.setComarkAst):
            invoking another command from inside a (props) => handler dispatches a
            fresh transaction, which ProseMirror rejects as mismatched. */
@@ -752,6 +795,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
             props.editor.commands.setComarkAst(tree, {
               emitUpdate: options?.emitUpdate ?? true,
               errorOnInvalidContent: options?.errorOnInvalidContent,
+              transactionMeta: options?.transactionMeta,
             });
           })
           .catch((err) => {

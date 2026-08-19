@@ -11,7 +11,9 @@ import {
 } from "vue";
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import type { AnyExtension } from "@tiptap/core";
+import type { Transaction } from "@tiptap/pm/state";
 import {
+  MODEL_APPLY_META,
   readByFlavor,
   safeJson,
   type ComarkErrorHandler,
@@ -77,7 +79,7 @@ export const ComarkEditor = defineComponent({
   emits: {
     "update:modelValue": (_value: ContentValue) => true,
     "ready": (_editor: Editor) => true,
-    "update": (_editor: Editor) => true,
+    "update": (_editor: Editor, _transaction: Transaction) => true,
   },
 
   slots: Object as SlotsType<ComarkEditorSlots>,
@@ -145,6 +147,16 @@ export const ComarkEditor = defineComponent({
      */
     let shadow: string | null = null;
 
+    /*
+     * Push scheduling: a burst of updates in one task collapses into a single
+     * serialize+emit on the next microtask, reading the editor's latest state.
+     * `pushSeq` invalidates in-flight async (markdown) renders — every
+     * doc-changing update and every outside-in apply bumps it, so a render
+     * that resolves after a newer one started is dropped instead of emitted.
+     */
+    let pushQueued = false;
+    let pushSeq = 0;
+
     // Seed: `:content` wins (explicit input); else v-model's initial value.
     const seedAtMount: ContentValue | undefined =
       props.content !== undefined ? props.content : modelValue();
@@ -182,18 +194,35 @@ export const ComarkEditor = defineComponent({
             }
             emit("ready", e);
           },
-          onUpdate: (e) => {
-            emit("update", e);
+          onUpdate: (e, transaction) => {
+            emit("update", e, transaction);
             if (!isModelBound()) return;
-            void pushModelFromEditor(e);
+            pushSeq++;
+            /* Echo of a value the watcher just applied — the model already
+               holds it, so skip the serialize-and-compare entirely. */
+            if (transaction.getMeta(MODEL_APPLY_META)) return;
+            schedulePush(e);
           },
         });
 
+    // Collapse a burst of updates into one push on the next microtask.
+    function schedulePush(e: Editor): void {
+      if (pushQueued) return;
+      pushQueued = true;
+      queueMicrotask(() => {
+        pushQueued = false;
+        void pushModelFromEditor(e);
+      });
+    }
+
     // Read the editor in the output flavor and push to v-model (shadow-guarded).
     async function pushModelFromEditor(e: Editor): Promise<void> {
+      if (e.isDestroyed) return;
       if (outputFlavor.value === "markdown") {
+        const seq = pushSeq;
         try {
           const md = await e.storage.comark.getMarkdown();
+          if (seq !== pushSeq) return;
           if (md === shadow) return;
           shadow = md;
           setModel(md);
@@ -213,9 +242,13 @@ export const ComarkEditor = defineComponent({
     // Seed the shadow without touching the model.
     async function initShadow(e: Editor): Promise<void> {
       if (outputFlavor.value === "markdown") {
+        const seq = pushSeq;
         try {
-          shadow = await e.storage.comark.getMarkdown();
+          const md = await e.storage.comark.getMarkdown();
+          if (seq !== pushSeq) return;
+          shadow = md;
         } catch (err) {
+          if (seq !== pushSeq) return;
           shadow = null;
           e.storage.comark.onError?.(err, { phase: "render" });
         }
@@ -242,7 +275,13 @@ export const ComarkEditor = defineComponent({
           if (j === shadow) return;
           shadow = j;
         }
-        void internal.setContent(next, { contentType: outputFlavor.value });
+        /* Bump before applying: a render still in flight describes a state
+           older than the value being pushed in and must not clobber it. */
+        pushSeq++;
+        void internal.setContent(next, {
+          contentType: outputFlavor.value,
+          transactionMeta: { [MODEL_APPLY_META]: true },
+        });
       },
     );
 
