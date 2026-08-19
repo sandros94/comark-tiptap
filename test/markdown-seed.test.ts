@@ -619,6 +619,34 @@ describe("ComarkSerializer — `transactionMeta`", () => {
     expect(getDoc(editor).content?.[0]?.type).toBe("heading");
     expect(seen).toEqual([2]);
   });
+
+  it("stamps the meta on the transaction that inserts object content", () => {
+    const editor = track(makeEditor());
+    editor.commands.setContent("seed", { contentType: "html" });
+    const seen: unknown[] = [];
+    editor.on("update", ({ transaction }) => seen.push(transaction.getMeta("foo")));
+
+    editor.commands.insertContent(
+      { type: "paragraph", content: [{ type: "text", text: "tagged" }] } satisfies JSONContent,
+      { transactionMeta: { foo: 3 } },
+    );
+
+    expect(editor.getText()).toContain("tagged");
+    expect(seen).toEqual([3]);
+  });
+
+  it("carries the meta across the async markdown hop of insertContent", async () => {
+    const editor = track(makeEditor());
+    editor.commands.setContent("seed", { contentType: "html" });
+    const seen: unknown[] = [];
+    editor.on("update", ({ transaction }) => seen.push(transaction.getMeta("foo")));
+
+    editor.commands.insertContent("## Inserted\n", { transactionMeta: { foo: 4 } });
+    await nextUpdate(editor);
+
+    expect(editor.getText()).toContain("Inserted");
+    expect(seen).toEqual([4]);
+  });
 });
 
 describe("ComarkSerializer — `getAst` memo", () => {
@@ -656,6 +684,36 @@ describe("ComarkSerializer — `getAst` memo", () => {
 
     expect(after).not.toBe(before);
     expect(after).toEqual(before);
+  });
+});
+
+describe("ComarkSerializer — `getMarkdown` memo", () => {
+  it("reuses the rendered markdown while getAst returns the same tree", async () => {
+    const editor = track(makeEditor({ content: "seed", contentType: "html" }));
+    const first = await editor.storage.comark.getMarkdown();
+    const entry = editor.storage.comark.markdownCache;
+    const second = await editor.storage.comark.getMarkdown();
+
+    expect(second).toBe(first);
+    // A re-render would have replaced the entry; identity proves the memo hit.
+    expect(editor.storage.comark.markdownCache).toBe(entry);
+    expect(entry?.ast).toBe(editor.storage.comark.getAst());
+  });
+
+  it("re-renders after an edit produces a fresh AST", async () => {
+    const editor = track(makeEditor({ content: "seed", contentType: "html" }));
+    const before = await editor.storage.comark.getMarkdown();
+    const entry = editor.storage.comark.markdownCache;
+
+    editor.commands.insertContentAt(editor.state.doc.content.size, {
+      type: "paragraph",
+      content: [{ type: "text", text: "more" }],
+    });
+    const after = await editor.storage.comark.getMarkdown();
+
+    expect(after).not.toBe(before);
+    expect(after).toContain("more");
+    expect(editor.storage.comark.markdownCache).not.toBe(entry);
   });
 });
 

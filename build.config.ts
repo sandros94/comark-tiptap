@@ -8,11 +8,9 @@ const PEER_EXTERNAL = [/^@tiptap\//, /^comark(\/|$)/, /^vue$/, /^react(\/|$)/, /
 
 export default defineBuildConfig({
   entries: [
-    /* Core: index.ts's graph never touches the framework dirs, so the core
-       dist carries zero framework dependency. */
     {
       type: "bundle",
-      input: ["./src/index.ts"],
+      input: ["./src/index.ts", "./src/internal.ts"],
       rolldown: {
         platform: "neutral",
         external: PEER_EXTERNAL,
@@ -23,7 +21,7 @@ export default defineBuildConfig({
       input: ["./src/vue/index.ts"],
       rolldown: {
         platform: "neutral",
-        external: [...PEER_EXTERNAL, "comark-tiptap"],
+        external: [...PEER_EXTERNAL, /^comark-tiptap(\/|$)/],
       },
     },
     {
@@ -31,7 +29,7 @@ export default defineBuildConfig({
       input: ["./src/react/index.ts"],
       rolldown: {
         platform: "neutral",
-        external: [...PEER_EXTERNAL, "comark-tiptap"],
+        external: [...PEER_EXTERNAL, /^comark-tiptap(\/|$)/],
       },
     },
   ],

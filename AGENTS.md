@@ -2,7 +2,7 @@
 
 # comark-tiptap — Agent Guide
 
-`comark-tiptap` is a [Comark](https://github.com/comarkdown/comark)-aware [Tiptap](https://tiptap.dev) kit that round-trips losslessly between Tiptap's ProseMirror schema, the Comark AST, and markdown. It ships as **one package with subpath entries**: `comark-tiptap` (framework-agnostic core), `comark-tiptap/vue` (Vue 3), and `comark-tiptap/react` (React). Each framework and its Tiptap binding (`vue`/`@tiptap/vue-3`, `react`/`react-dom`/`@tiptap/react`) are **optional** peer deps.
+`comark-tiptap` is a [Comark](https://github.com/comarkdown/comark)-aware [Tiptap](https://tiptap.dev) kit that round-trips losslessly between Tiptap's ProseMirror schema, the Comark AST, and markdown. It ships as **one package with subpath entries**: `comark-tiptap` (framework-agnostic core), `comark-tiptap/vue` (Vue 3), `comark-tiptap/react` (React), and `comark-tiptap/internal` (binding plumbing, not semver-covered). Each framework and its Tiptap binding (`vue`/`@tiptap/vue-3`, `react`/`react-dom`/`@tiptap/react`) are **optional** peer deps.
 
 ## Core Principle — Ask First
 
@@ -19,7 +19,7 @@ For design decisions, ambiguity, or vision changes, run a structured Q&A before 
 
 ## Commands
 
-- **Build:** `pnpm build` (obuild) — emits `dist/index.mjs` (core) + `dist/vue/index.mjs` + `dist/react/index.mjs`, each bundled with `.d.mts`.
+- **Build:** `pnpm build` (obuild) — emits `dist/index.mjs` (core) + `dist/internal.mjs` + `dist/vue/index.mjs` + `dist/react/index.mjs`, each bundled with `.d.mts`.
 - **Stub (dev):** `pnpm dev:prepare` — `obuild --stub` symlinks `dist/*` back to `src`, so playgrounds and `tsc` resolve the workspace `comark-tiptap` without a full build.
 - **Test:** `pnpm test` (vitest). Single file: `pnpm vitest run test/serializer.test.ts`.
 - **Typecheck:** `pnpm typecheck` (`tsc --noEmit` — native TypeScript 7; the vue/nuxt playgrounds stay on TS 6 for vue-tsc).
@@ -33,6 +33,7 @@ Single package, subpath exports:
 - `comark-tiptap` — `ComarkKit`, the serializer, per-node/mark specs, `defineComarkComponent`, utils. No framework code.
 - `comark-tiptap/vue` — `<ComarkEditor>`, `useComarkEditor`, `defineComarkVueComponent`.
 - `comark-tiptap/react` — `<ComarkEditor>`, `useComarkEditor`, `defineComarkReactComponent`.
+- `comark-tiptap/internal` — the content-routing helpers the bindings share. Not part of the semver-supported public API.
 
 Each framework binding imports the core **by package name** (`comark-tiptap`, self-referenced via `exports`), kept external at build time so the core is never re-bundled. Framework bindings mirror each other's surface, adapted to each framework's idioms (Vue `v-model` + modifiers; React controlled `value`/`onChange` + `contentType`).
 
@@ -41,6 +42,7 @@ Each framework binding imports the core **by package name** (`comark-tiptap`, se
 ```
 src/
   index.ts              # core barrel
+  internal.ts           # `comark-tiptap/internal` barrel — re-exports content.ts for the bindings
   kit.ts                # ComarkKit — assembles StarterKit + tables + image + picture + comark nodes + serializer
   serializer.ts         # ComarkSerializer extension + createSerializer (pure dispatcher) + PM↔Comark commands
   content.ts            # @internal content-routing helpers shared by the bindings (applyContent/readByFlavor/isMarkdownDocumentLike/safeJson)
@@ -66,15 +68,15 @@ test/                   # mirrors src/ (imports ../src/…); DOM tests opt into 
 
 The framework-agnostic `ContentType` / `ContentValue` / `SetterContext` / `SetterInput` types live in core (`src/types.ts`, exported from `comark-tiptap`); each binding imports and re-exports them. `SetterContext.editor` is typed as `@tiptap/core`'s `Editor` (React's `Editor` _is_ it; Vue's extends it).
 
-The identical content-dispatch/read logic each binding needs (`applyContent`, `readByFlavor`, `isMarkdownDocumentLike`, `safeJson`) lives once in `src/content.ts`, exported `@internal` from the barrel and imported by the bindings by package name. The stateful shadow-guard orchestration (echo-loop dedup, seed sequencing) stays per-binding — it's framework-shaped (Vue `watch`/emit vs React `useEffect`/`onChange`) and doesn't factor cleanly into a shared primitive.
+The identical content-dispatch/read logic each binding needs (`applyContent`, `readByFlavor`, `isMarkdownDocumentLike`, `safeJson`, `createPushScheduler`) lives once in `src/content.ts`, exported via the `comark-tiptap/internal` subpath and imported by the bindings by package name. The stateful shadow-guard orchestration (echo-loop dedup, seed sequencing) stays per-binding — it's framework-shaped (Vue `watch`/emit vs React `useEffect`/`onChange`) and doesn't factor cleanly into a shared primitive.
 
-Model pushes are **microtask-coalesced** (a burst of updates in one task collapses into one serialize+emit reading the latest state) and **sequence-stamped**: every doc-changing update and every outside-in apply bumps a counter, and an async markdown render whose counter is stale is discarded instead of emitted. Outside-in applies tag their transaction with `transactionMeta: { [MODEL_APPLY_META]: true }` (`src/content.ts`), and the binding's `onUpdate` returns before scheduling a push for a tagged transaction — the echo never serializes. `onUpdate` callbacks (both composable/hook options and the Vue `update` emit) receive `(editor, transaction)`.
+Model pushes are **microtask-coalesced** (a burst of updates in one task collapses into one serialize+emit reading the latest state) and **sequence-stamped**: every doc-changing update and every outside-in apply bumps a counter, and an async markdown render whose counter is stale (or whose editor was destroyed meanwhile) is discarded instead of emitted. The counter mechanics are framework-free and live once in `createPushScheduler` (`src/content.ts`, `@internal`); each binding owns one instance. Outside-in applies tag their transaction with `transactionMeta: { [MODEL_APPLY_META]: true }` (`src/content.ts`), and the binding's `onUpdate` returns before scheduling a push for a tagged transaction — the echo never serializes. `onUpdate` callbacks (both composable/hook options and the Vue `update` emit) receive `(editor, transaction)`.
 
 ### Key design patterns
 
 - **Registry-based serializer, not per-extension storage.** `ComarkSerializer.configure({ specs })` carries the dispatch table; `ComarkKit` builds it from `comarkSpecs` (stock set) + user components. This lets the kit use **stock** StarterKit extensions unmodified (free-rides on upstream, stays ecosystem-compatible).
-- **`storage.comark.getAst()` is memoized single-slot** on PM doc identity plus `frontmatter` / `meta` reference identity. The PM doc is immutable and `setComarkAst` / `setContent` replace the two bags with fresh spreads, so identity is a sound key. The returned document is a shared snapshot — treat it as read-only.
-- **`transactionMeta` rides the content commands.** `SetComarkContentOptions.transactionMeta` is stamped once at the top of the `setContent` override; Tiptap command chains share one transaction, so every synchronous branch (AST object, HTML/pass-through, JSON) inherits it, and the async markdown branch forwards the entries to the eventual `setComarkAst`. Reachable in `onUpdate` via `transaction.getMeta(key)`.
+- **`storage.comark.getAst()` is memoized single-slot** on PM doc identity plus `frontmatter` / `meta` reference identity. The PM doc is immutable and `setComarkAst` / `setContent` replace the two bags with fresh spreads, so identity is a sound key. The returned document is a shared snapshot — treat it as read-only. `getMarkdown()` layers a second single-slot memo on top, keyed on that tree's reference, so a re-read of an unchanged doc skips `renderMarkdown`.
+- **`transactionMeta` rides the content commands.** `SetComarkContentOptions.transactionMeta` is stamped once at the top of the `setContent` / `insertContent` / `insertContentAt` overrides; Tiptap command chains share one transaction, so every synchronous branch (AST object, HTML/pass-through, JSON) inherits it, and the async markdown branch forwards the options to the re-entrant apply, which stamps the deferred transaction. Reachable in `onUpdate` via `transaction.getMeta(key)`.
 - **`htmlAttrs` added once, globally** via `ComarkAttrs.addGlobalAttributes` (not per extension). User components declare their own `htmlAttrs` in `addAttributes` because their names aren't known when global attrs resolve.
 - **Strings are markdown.** `setContent`/`insertContent`/`insertContentAt` route strings through `parseMarkdown`; `{ contentType: 'html' | 'json' }` are escape hatches. Object inputs auto-detect `MarkdownDocument` (has a `nodes` array) vs PM JSON.
 - **Async markdown seed.** `parseMarkdown` is async-only — string seeds apply one microtask late. Object paths stay sync. This diverges from `@tiptap/markdown` (sync). See `test/markdown-seed.test.ts`.
@@ -88,7 +90,7 @@ Model pushes are **microtask-coalesced** (a burst of updates in one task collaps
 
 ### Build
 
-- **obuild, one `type: "bundle"` entry per subpath.** Core roots at `src/index.ts` (its graph never touches the framework dirs, so the core dist has zero framework dependency); `src/vue/index.ts` and `src/react/index.ts` each mark `comark-tiptap` (+ the framework peers) external.
+- **obuild: three `type: "bundle"` entries.** Core (`src/index.ts`) and the binding-support entry (`src/internal.ts`) share ONE bundle entry, so rolldown splits their common modules into `dist/_chunks/` — `content.ts` exists once at runtime instead of once per bundle (a separate entry would duplicate it, which is only safe while everything there stays stateless and identity-free; the shared chunk removes that invariant). The core graph never touches the framework dirs, so its dist has zero framework dependency; `src/vue/index.ts` and `src/react/index.ts` each mark `comark-tiptap` **including its subpaths** (`/^comark-tiptap(\/|$)/`, they import `comark-tiptap/internal` too) plus the framework peers external.
 - **Vue `<ComarkEditor>` is a `.ts` `defineComponent`, not an SFC.** obuild's released transform can't compile `.vue` (its plugin API isn't wired into `type: "transform"`); a render-function component gives clean `.d.ts` with full prop/emit/slot types through one toolchain. React is authored in `.tsx` (oxc handles JSX → automatic runtime).
 
 ## Testing conventions

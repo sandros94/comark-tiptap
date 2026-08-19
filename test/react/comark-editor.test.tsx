@@ -224,6 +224,78 @@ describe("<ComarkEditor> (React, controlled)", () => {
     renderMd.mockRestore();
   });
 
+  it("coalesces same-task edits into a single onChange emission (json)", async () => {
+    const docA: JSONContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "AAA" }] }],
+    };
+    const docB: JSONContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "BBB" }] }],
+    };
+    const docC: JSONContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "CCC" }] }],
+    };
+    let editor: Editor | null = null;
+    const onChange = vi.fn<(v: ContentValue) => void>();
+    render(
+      <ComarkEditor
+        value={docA}
+        contentType="json"
+        onChange={onChange}
+        onReady={(e) => {
+          editor = e;
+        }}
+      />,
+    );
+    await waitFor(() => expect(editor).not.toBeNull());
+    const ed = editor as unknown as Editor;
+    await waitFor(() => expect(ed.getText()).toContain("AAA"));
+
+    onChange.mockClear();
+    await act(async () => {
+      ed.commands.setContent(docB);
+      ed.commands.setContent(docC);
+      await tick();
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(onChange.mock.calls[0]?.[0])).toContain("CCC");
+  });
+
+  it("still emits for a programmatic setContent on the editor handed to onReady", async () => {
+    // The skip is keyed on the effect's own tag — an imperative apply is a
+    // regular edit and must round-trip back through onChange.
+    let editor: Editor | null = null;
+    const onChange = vi.fn<(v: ContentValue) => void>();
+    render(
+      <ComarkEditor
+        value="# A"
+        contentType="markdown"
+        onChange={onChange}
+        onReady={(e) => {
+          editor = e;
+        }}
+      />,
+    );
+    await waitFor(() => expect(editor).not.toBeNull());
+    const ed = editor as unknown as Editor;
+    await waitFor(() => expect(ed.getText()).toContain("A"));
+
+    onChange.mockClear();
+    await act(async () => {
+      ed.commands.setContent({
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "Imperative" }] }],
+      } satisfies JSONContent);
+      await tick();
+    });
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(onChange.mock.calls.at(-1)?.[0] as string).toContain("Imperative");
+  });
+
   it("does not clobber an in-flight edit when an unrelated re-render lands (lagging value)", async () => {
     // Parent holds `value` fixed (does NOT reflect onChange) — a debounced /
     // validated store. An unrelated re-render must not re-apply the stale value

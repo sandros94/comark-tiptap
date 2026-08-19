@@ -1,16 +1,19 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { EditorContent, type Editor } from "@tiptap/react";
 import type { AnyExtension } from "@tiptap/core";
 import type { Transaction } from "@tiptap/pm/state";
+import type {
+  ComarkErrorHandler,
+  ComarkKitOptions,
+  ContentType,
+  ContentValue,
+} from "comark-tiptap";
 import {
+  createPushScheduler,
   MODEL_APPLY_META,
   readByFlavor,
   safeJson,
-  type ComarkErrorHandler,
-  type ComarkKitOptions,
-  type ContentType,
-  type ContentValue,
-} from "comark-tiptap";
+} from "comark-tiptap/internal";
 import { useComarkEditor, type UseComarkEditorOptions } from "./use-comark-editor";
 import type { ComarkReactComponentExports } from "./define-component";
 
@@ -111,11 +114,13 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
 
   /* Push scheduling: a burst of updates in one task collapses into a single
      serialize+emit on the next microtask, reading the editor's latest state.
-     `pushSeq` invalidates in-flight async (markdown) renders — every
+     The sequence invalidates in-flight async (markdown) renders — every
      doc-changing update and every outside-in apply bumps it, so a render that
-     resolves after a newer one started is dropped instead of emitted. */
-  const pushQueued = useRef(false);
-  const pushSeq = useRef(0);
+     resolves after a newer one started is dropped instead of emitted. Every
+     async resume re-checks BOTH the sequence and `isDestroyed`: a fast unmount
+     (or StrictMode's double-invoke) can land while a render is still pending.
+     Lazy `useState` init, so the instance is stable across re-renders. */
+  const [pushScheduler] = useState(createPushScheduler);
 
   /* `content` wins as the explicit seed; else the controlled value's initial. */
   const seedAtMount = content !== undefined ? content : value;
@@ -123,14 +128,15 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
   const pushValueFromEditor = async (e: Editor): Promise<void> => {
     if (e.isDestroyed) return;
     if (contentType === "markdown") {
-      const seq = pushSeq.current;
+      const seq = pushScheduler.capture();
       try {
         const md = await e.storage.comark.getMarkdown();
-        if (seq !== pushSeq.current) return;
+        if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
         if (md === shadow.current) return;
         shadow.current = md;
         onChange?.(md);
       } catch (err) {
+        if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
         /* Keep the editor alive over a render error; surface it if observed. */
         e.storage.comark.onError?.(err, { phase: "render" });
       }
@@ -145,29 +151,19 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
 
   const initShadow = async (e: Editor): Promise<void> => {
     if (contentType === "markdown") {
-      const seq = pushSeq.current;
+      const seq = pushScheduler.capture();
       try {
         const md = await e.storage.comark.getMarkdown();
-        if (seq !== pushSeq.current) return;
+        if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
         shadow.current = md;
       } catch (err) {
-        if (seq !== pushSeq.current) return;
+        if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
         shadow.current = null;
         e.storage.comark.onError?.(err, { phase: "render" });
       }
       return;
     }
     shadow.current = safeJson(readByFlavor(e, contentType));
-  };
-
-  // Collapse a burst of updates into one push on the next microtask.
-  const schedulePush = (e: Editor): void => {
-    if (pushQueued.current) return;
-    pushQueued.current = true;
-    queueMicrotask(() => {
-      pushQueued.current = false;
-      void pushValueFromEditor(e);
-    });
   };
 
   const internal = useComarkEditor({
@@ -195,11 +191,11 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     onUpdate: (e, transaction) => {
       onUpdate?.(e, transaction);
       if (!onChange) return;
-      pushSeq.current++;
+      pushScheduler.bump();
       /* Echo of a value the effect just applied — the controlled value already
          holds it, so skip the serialize-and-compare entirely. */
       if (transaction.getMeta(MODEL_APPLY_META)) return;
-      schedulePush(e);
+      pushScheduler.schedule(() => void pushValueFromEditor(e));
     },
   });
 
@@ -222,9 +218,9 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     }
     /* Bump before applying: a render still in flight describes a state older
        than the value being pushed in and must not clobber it. */
-    pushSeq.current++;
+    pushScheduler.bump();
     void setContent(value, { contentType, transactionMeta: { [MODEL_APPLY_META]: true } });
-  }, [value, editor, contentType, setContent]);
+  }, [value, editor, contentType, setContent, pushScheduler]);
 
   if (!editor) return <div data-comark-editor="">{fallback ?? null}</div>;
   return (

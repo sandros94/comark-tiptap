@@ -87,6 +87,51 @@ export function readByFlavor(editor: Editor, contentType: ContentType): ContentV
 }
 
 /**
+ * Coalesce-and-invalidate scheduler behind the bindings' model pushes.
+ *
+ * @internal
+ */
+export interface PushScheduler {
+  /** Invalidate in-flight async work: every sequence captured so far goes stale. */
+  bump(): void;
+  /** Run `flush` on the next microtask, collapsing a burst of calls into one. */
+  schedule(flush: () => void): void;
+  /** Take the current sequence, to be re-checked after an `await`. */
+  capture(): number;
+  /** Whether a captured sequence still describes the latest state. */
+  isCurrent(seq: number): boolean;
+}
+
+/**
+ * Build a {@link PushScheduler}: `schedule` collapses a burst of pushes into
+ * one flush on the next microtask (which reads the editor's latest state, so
+ * only the first closure of a window is kept), while `bump` invalidates
+ * in-flight async renders so a stale resume drops itself via
+ * `capture` / `isCurrent`.
+ *
+ * @internal
+ */
+export function createPushScheduler(): PushScheduler {
+  let queued = false;
+  let seq = 0;
+  return {
+    bump: () => {
+      seq++;
+    },
+    schedule: (flush) => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        flush();
+      });
+    },
+    capture: () => seq,
+    isCurrent: (captured) => captured === seq,
+  };
+}
+
+/**
  * `JSON.stringify` that never throws — the binding shadow guard stamps this to
  * dedupe the model↔editor echo, and a cyclic value must not crash the guard.
  *

@@ -5,6 +5,7 @@ A [Comark](https://github.com/comarkdown/comark)-aware [Tiptap](https://tiptap.d
 - **`comark-tiptap`** — the framework-agnostic core (`ComarkKit`, serializer, specs).
 - **`comark-tiptap/vue`** — Vue 3 bindings (`<ComarkEditor>`, `useComarkEditor`, Vue NodeView helpers).
 - **`comark-tiptap/react`** — React bindings (`<ComarkEditor>`, `useComarkEditor`, React NodeView helpers).
+- **`comark-tiptap/internal`** — plumbing the bindings share. **Not public API** — it can change in any release.
 
 More framework bindings are planned, following the frameworks Comark already supports. Each ships as its own subpath export with its framework as an **optional** peer dependency — so the core stays framework-agnostic and you install only what you use.
 

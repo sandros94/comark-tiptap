@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       "comark-tiptap/vue": fileURLToPath(new URL("./src/vue/index.ts", import.meta.url)),
       "comark-tiptap/react": fileURLToPath(new URL("./src/react/index.ts", import.meta.url)),
+      "comark-tiptap/internal": fileURLToPath(new URL("./src/internal.ts", import.meta.url)),
       "comark-tiptap": fileURLToPath(new URL("./src/index.ts", import.meta.url)),
     },
   },

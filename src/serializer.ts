@@ -6,6 +6,7 @@ import {
   type JSONContent,
 } from "@tiptap/core";
 import type { Node as ProseMirrorNode, Schema } from "@tiptap/pm/model";
+import type { Transaction } from "@tiptap/pm/state";
 import { parseMarkdown } from "comark";
 import { renderMarkdown } from "comark/render";
 import { isMarkdownDocumentLike } from "./content";
@@ -432,11 +433,14 @@ declare module "@tiptap/core" {
      * - `'json'` — `JSON.parse`, then route by shape.
      */
     contentType?: "markdown" | "html" | "json";
+    /** Meta entries stamped on the inserting transaction, readable via `transaction.getMeta(key)`. */
+    transactionMeta?: Record<string, unknown>;
   }
   /** Same options as {@link InsertContentOptions}, for `insertContentAt`. */
   interface InsertContentAtOptions {
     inline?: boolean;
     contentType?: "markdown" | "html" | "json";
+    transactionMeta?: Record<string, unknown>;
   }
   interface SetContentOptions {
     /**
@@ -535,6 +539,8 @@ export interface ComarkSerializerStorage {
     meta: Record<string, unknown>;
     ast: MarkdownDocument;
   } | null;
+  /** Single-slot `getMarkdown` memo, keyed on the `getAst` result's identity. @internal */
+  markdownCache: { ast: MarkdownDocument; markdown: string } | null;
   /**
    * Read the editor's current content as a Comark AST. The returned document
    * is a shared snapshot — treat it as read-only.
@@ -595,6 +601,14 @@ function reportError(
   }
 }
 
+/** Stamp caller-supplied `transactionMeta` entries on a command's transaction. */
+function stampTransactionMeta(tr: Transaction, meta: Record<string, unknown> | undefined): void {
+  if (!meta) return;
+  for (const [key, value] of Object.entries(meta)) {
+    tr.setMeta(key, value);
+  }
+}
+
 export const ComarkSerializer = Extension.create<ComarkSerializerOptions, ComarkSerializerStorage>({
   name: "comark",
 
@@ -615,6 +629,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       editor: null,
       onError: undefined,
       astCache: null,
+      markdownCache: null,
       getAst(this: ComarkSerializerStorage): MarkdownDocument {
         if (!this.editor) throw new Error("[comark] editor not yet attached");
         /* The PM doc is immutable and `setComarkAst` / `setContent` replace
@@ -638,8 +653,15 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         return ast;
       },
       async getMarkdown(this: ComarkSerializerStorage): Promise<string> {
+        /* Layered on the getAst memo: the entry is keyed on that exact tree
+           object, so a doc change landing mid-render writes an entry for the
+           tree it rendered (still correct, just no longer current) and a
+           concurrent duplicate render writes an identical one. */
         const tree = this.getAst();
-        return await renderMarkdown(tree);
+        if (this.markdownCache?.ast === tree) return this.markdownCache.markdown;
+        const markdown = await renderMarkdown(tree);
+        this.markdownCache = { ast: tree, markdown };
+        return markdown;
       },
     };
   },
@@ -760,11 +782,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       setContent: (content, options) => (props) => {
         /* Command chains share one transaction, so stamping here covers every
            synchronous branch below (baseSetContent mutates this same `tr`). */
-        if (options?.transactionMeta) {
-          for (const [key, value] of Object.entries(options.transactionMeta)) {
-            props.tr.setMeta(key, value);
-          }
-        }
+        stampTransactionMeta(props.tr, options?.transactionMeta);
         /* Inline the AST application here (don't call editor.commands.setComarkAst):
            invoking another command from inside a (props) => handler dispatches a
            fresh transaction, which ProseMirror rejects as mismatched. */
@@ -805,6 +823,10 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       },
 
       insertContent: (value, options) => (props) => {
+        /* Same stamping as setContent: one `tr` per chain covers the sync
+           branches, and the async markdown branch forwards `options` to the
+           re-entrant call, which stamps the deferred transaction. */
+        stampTransactionMeta(props.tr, options?.transactionMeta);
         if (isMarkdownDocumentLike(value)) {
           const payload = comarkTreeToInsertPayload(
             value,
@@ -844,6 +866,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       },
 
       insertContentAt: (position, value, options) => (props) => {
+        stampTransactionMeta(props.tr, options?.transactionMeta);
         if (isMarkdownDocumentLike(value)) {
           const payload = comarkTreeToInsertPayload(
             value,

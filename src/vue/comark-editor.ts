@@ -12,14 +12,13 @@ import {
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import type { AnyExtension } from "@tiptap/core";
 import type { Transaction } from "@tiptap/pm/state";
+import type { ComarkErrorHandler, ContentType, ContentValue } from "comark-tiptap";
 import {
+  createPushScheduler,
   MODEL_APPLY_META,
   readByFlavor,
   safeJson,
-  type ComarkErrorHandler,
-  type ContentType,
-  type ContentValue,
-} from "comark-tiptap";
+} from "comark-tiptap/internal";
 import { useComarkEditor, type UseComarkEditorOptions } from "./use-comark-editor";
 import type { ComarkEditorProps, ComarkEditorSlots } from "./comark-editor.types";
 import type { ComarkVueComponentExports } from "./define-component";
@@ -150,12 +149,13 @@ export const ComarkEditor = defineComponent({
     /*
      * Push scheduling: a burst of updates in one task collapses into a single
      * serialize+emit on the next microtask, reading the editor's latest state.
-     * `pushSeq` invalidates in-flight async (markdown) renders — every
+     * The sequence invalidates in-flight async (markdown) renders — every
      * doc-changing update and every outside-in apply bumps it, so a render
      * that resolves after a newer one started is dropped instead of emitted.
+     * Every async resume re-checks BOTH the sequence and `isDestroyed`: a fast
+     * unmount can land while a render is still pending.
      */
-    let pushQueued = false;
-    let pushSeq = 0;
+    const pushScheduler = createPushScheduler();
 
     // Seed: `:content` wins (explicit input); else v-model's initial value.
     const seedAtMount: ContentValue | undefined =
@@ -197,36 +197,27 @@ export const ComarkEditor = defineComponent({
           onUpdate: (e, transaction) => {
             emit("update", e, transaction);
             if (!isModelBound()) return;
-            pushSeq++;
+            pushScheduler.bump();
             /* Echo of a value the watcher just applied — the model already
                holds it, so skip the serialize-and-compare entirely. */
             if (transaction.getMeta(MODEL_APPLY_META)) return;
-            schedulePush(e);
+            pushScheduler.schedule(() => void pushModelFromEditor(e));
           },
         });
-
-    // Collapse a burst of updates into one push on the next microtask.
-    function schedulePush(e: Editor): void {
-      if (pushQueued) return;
-      pushQueued = true;
-      queueMicrotask(() => {
-        pushQueued = false;
-        void pushModelFromEditor(e);
-      });
-    }
 
     // Read the editor in the output flavor and push to v-model (shadow-guarded).
     async function pushModelFromEditor(e: Editor): Promise<void> {
       if (e.isDestroyed) return;
       if (outputFlavor.value === "markdown") {
-        const seq = pushSeq;
+        const seq = pushScheduler.capture();
         try {
           const md = await e.storage.comark.getMarkdown();
-          if (seq !== pushSeq) return;
+          if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
           if (md === shadow) return;
           shadow = md;
           setModel(md);
         } catch (err) {
+          if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
           /* Keep the editor alive over a render error; surface it if observed. */
           e.storage.comark.onError?.(err, { phase: "render" });
         }
@@ -242,13 +233,13 @@ export const ComarkEditor = defineComponent({
     // Seed the shadow without touching the model.
     async function initShadow(e: Editor): Promise<void> {
       if (outputFlavor.value === "markdown") {
-        const seq = pushSeq;
+        const seq = pushScheduler.capture();
         try {
           const md = await e.storage.comark.getMarkdown();
-          if (seq !== pushSeq) return;
+          if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
           shadow = md;
         } catch (err) {
-          if (seq !== pushSeq) return;
+          if (e.isDestroyed || !pushScheduler.isCurrent(seq)) return;
           shadow = null;
           e.storage.comark.onError?.(err, { phase: "render" });
         }
@@ -277,7 +268,7 @@ export const ComarkEditor = defineComponent({
         }
         /* Bump before applying: a render still in flight describes a state
            older than the value being pushed in and must not clobber it. */
-        pushSeq++;
+        pushScheduler.bump();
         void internal.setContent(next, {
           contentType: outputFlavor.value,
           transactionMeta: { [MODEL_APPLY_META]: true },

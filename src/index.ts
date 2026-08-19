@@ -18,15 +18,6 @@ export type {
   SetterInput,
 } from "./types";
 
-/* @internal — content-routing helpers shared by the framework bindings; not part of the public API. */
-export {
-  applyContent,
-  isMarkdownDocumentLike,
-  MODEL_APPLY_META,
-  readByFlavor,
-  safeJson,
-} from "./content";
-
 export { ComarkKit, type ComarkKitOptions } from "./kit";
 
 // Serializer surface
@@ -90,7 +81,14 @@ export {
 } from "./specs";
 
 // Utilities
-export { attrsEqual, cleanAttrs, hasNoHtmlAttrs, mergeAttrs, splitAttrs } from "./utils/attrs";
+export {
+  attrsEqual,
+  cleanAttrs,
+  hasNoHtmlAttrs,
+  mergeAttrs,
+  readHtmlAttrsBag,
+  splitAttrs,
+} from "./utils/attrs";
 export { autoUnwrapBlocks } from "./utils/auto-unwrap";
 export { collectDomAttrs, htmlAttrSpec, type HtmlAttrSpecOptions } from "./utils/html-attrs";
 export { parseSrcset, resolveSrcset, type SrcsetCandidate } from "./utils/srcset";

@@ -3,10 +3,7 @@ import { useEditor, type Editor } from "@tiptap/react";
 import type { AnyExtension, Content, EditorOptions } from "@tiptap/core";
 import type { Transaction } from "@tiptap/pm/state";
 import {
-  applyContent,
   ComarkKit,
-  isMarkdownDocumentLike,
-  readByFlavor,
   type ComarkErrorHandler,
   type ComarkKitOptions,
   type MarkdownDocument,
@@ -17,6 +14,7 @@ import {
   type SetterContext,
   type SetterInput,
 } from "comark-tiptap";
+import { applyContent, isMarkdownDocumentLike, readByFlavor } from "comark-tiptap/internal";
 import type { ComarkReactComponentExports } from "./define-component";
 
 export interface UseComarkEditorOptions {

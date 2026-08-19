@@ -2,10 +2,7 @@ import type { AnyExtension, Content, EditorOptions } from "@tiptap/core";
 import type { Transaction } from "@tiptap/pm/state";
 import { Editor } from "@tiptap/vue-3";
 import {
-  applyContent,
   ComarkKit,
-  isMarkdownDocumentLike,
-  readByFlavor,
   type ComarkErrorHandler,
   type ComarkKitOptions,
   type MarkdownDocument,
@@ -16,6 +13,7 @@ import {
   type SetterContext,
   type SetterInput,
 } from "comark-tiptap";
+import { applyContent, isMarkdownDocumentLike, readByFlavor } from "comark-tiptap/internal";
 import {
   computed,
   isRef,
