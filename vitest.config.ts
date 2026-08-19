@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 /* `src/{vue,react}/**` import the core by package name (`comark-tiptap`);
    alias the subpaths to source so tests run without a build. */
@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   test: {
+    exclude: [...configDefaults.exclude, "**/.claude/**"],
     coverage: {
       exclude: ["dist/**", "test/**", "playground/**", "build.config.ts", "vitest.config.ts"],
     },
