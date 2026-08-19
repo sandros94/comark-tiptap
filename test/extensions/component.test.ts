@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer } from "../../src/serializer";
 import { paragraphSpec } from "../../src/specs/paragraph";
-import type { ElementNode } from "../../src/types";
+import { pictureSpec } from "../../src/specs/picture";
+import type { ElementNode, JSONContent } from "../../src/types";
 import { defineComarkComponent } from "../../src/extensions/component";
 
 describe("defineComarkComponent — block component", () => {
@@ -88,6 +89,41 @@ describe("defineComarkComponent — block component", () => {
   it("seeds an empty paragraph when the body is empty (PM `block+` cannot be empty)", () => {
     const result = Alert.spec.fromComark(["alert", { type: "info" }] as ElementNode, helpers);
     expect(result?.content).toEqual([{ type: "paragraph" }]);
+  });
+});
+
+describe("defineComarkComponent — block component with dual-context atoms (picture)", () => {
+  const Card = defineComarkComponent({ name: "card", kind: "block" });
+  const picHelpers = createSerializer({
+    nodes: [paragraphSpec, Card.spec, pictureSpec],
+    marks: [],
+  });
+  const PIC: ElementNode = ["picture", {}, ["img", { src: "/a.png" }]];
+  const PIC_PM: JSONContent = { type: "picture", attrs: { sources: [], img: { src: "/a.png" } } };
+
+  it("emits a bare picture for a sole picture-only paragraph", () => {
+    const pm: JSONContent = {
+      type: "card",
+      content: [{ type: "paragraph", content: [PIC_PM] }],
+    };
+    const el = Card.spec.toComark(pm, picHelpers) as ElementNode;
+    expect(el).toEqual(["card", {}, PIC]);
+    const back = Card.spec.fromComark(el, picHelpers)!;
+    expect(back.content).toEqual([{ type: "paragraph", content: [PIC_PM] }]);
+  });
+
+  it("hoists a picture-only paragraph sitting beside a text paragraph", () => {
+    const pm: JSONContent = {
+      type: "card",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "A" }] },
+        { type: "paragraph", content: [PIC_PM] },
+      ],
+    };
+    const el = Card.spec.toComark(pm, picHelpers) as ElementNode;
+    expect(el).toEqual(["card", {}, ["p", {}, "A"], PIC]);
+    const back = Card.spec.fromComark(el, picHelpers)!;
+    expect(back.content).toEqual(pm.content);
   });
 });
 

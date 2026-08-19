@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer, pmDocToComark } from "../../src/serializer";
-import type { ElementNode, MarkdownDocument } from "../../src/types";
+import type { CommentNode, MarkdownDocument } from "../../src/types";
 import { commentSpec } from "../../src/specs/comment";
 import { paragraphSpec } from "../../src/specs/paragraph";
 
@@ -28,11 +28,7 @@ describe("commentSpec", () => {
 
   it("preserves attrs on the comment element", () => {
     const result = commentSpec.fromComark(
-      [
-        null as unknown as string,
-        { "class": "todo", "data-x": "1" },
-        "note",
-      ] as unknown as ElementNode,
+      [null, { "class": "todo", "data-x": "1" }, "note"] as CommentNode,
       helpers,
     );
     expect(result).toEqual({

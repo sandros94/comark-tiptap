@@ -1,4 +1,4 @@
-import { mergeAttrs, splitAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
 import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
 const SEMANTIC_KEYS = ["language", "filename", "highlights", "meta"] as const;
@@ -18,10 +18,7 @@ export const codeBlockSpec: NodeSpec = {
     }
     if (node.attrs?.meta != null) semantic.meta = node.attrs.meta;
 
-    const preAttrs = mergeAttrs(
-      semantic,
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const preAttrs = mergeAttrs(semantic, readHtmlAttrsBag(node));
 
     const text = (node.content ?? [])
       .map((c) => (c.type === "text" ? (c.text ?? "") : ""))

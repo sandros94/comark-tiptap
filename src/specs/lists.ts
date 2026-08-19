@@ -1,4 +1,4 @@
-import { mergeAttrs, splitAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
 import { autoUnwrapBlocks } from "../utils/auto-unwrap";
 import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
@@ -18,10 +18,7 @@ export const listItemSpec: NodeSpec = {
   tags: ["li"],
 
   toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs({}, readHtmlAttrsBag(node));
     /*
      * Comark's list-item autoUnwrap: a single attrless paragraph flattens to
      * inlines (`['li',{},'x']`); anything else — multiple blocks, or a
@@ -52,10 +49,7 @@ export const bulletListSpec: NodeSpec = {
   tags: ["ul"],
 
   toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs({}, readHtmlAttrsBag(node));
     return ["ul", attrs, ...h.serializeBlocks(node.content)];
   },
 
@@ -88,10 +82,7 @@ export const orderedListSpec: NodeSpec = {
     if (startRaw != null && String(startRaw) !== "1") {
       semantic.start = String(startRaw);
     }
-    const attrs = mergeAttrs(
-      semantic,
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs(semantic, readHtmlAttrsBag(node));
     return ["ol", attrs, ...h.serializeBlocks(node.content)];
   },
 

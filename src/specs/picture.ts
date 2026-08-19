@@ -1,4 +1,4 @@
-import { cleanAttrs, mergeAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
 import type { ElementNode, Node, JSONContent, NodeSpec } from "../types";
 
 /**
@@ -18,20 +18,19 @@ export const pictureSpec: NodeSpec = {
   context: "inline-block",
 
   toComark(node: JSONContent): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs({}, readHtmlAttrsBag(node));
     const sources = (node.attrs?.sources as Record<string, unknown>[] | null | undefined) ?? [];
     const img = node.attrs?.img as Record<string, unknown> | null | undefined;
-    const children: Node[] = sources.map((s) => ["source", cleanAttrs(s)] as ElementNode);
-    if (img) children.push(["img", cleanAttrs(img)] as ElementNode);
+    const children: Node[] = sources.map(
+      (s) => ["source", splitAttrs(s, []).htmlAttrs] as ElementNode,
+    );
+    if (img) children.push(["img", splitAttrs(img, []).htmlAttrs] as ElementNode);
     return ["picture", attrs, ...children];
   },
 
   fromComark(el: ElementNode): JSONContent {
     const [, rawAttrs, ...children] = el;
-    const htmlAttrs = cleanAttrs(rawAttrs);
+    const htmlAttrs = splitAttrs(rawAttrs, []).htmlAttrs;
     const sources: Record<string, unknown>[] = [];
     let img: Record<string, unknown> | null = null;
     /* comark's block markdown form wraps the inner `![img]` in a paragraph,
@@ -43,9 +42,9 @@ export const pictureSpec: NodeSpec = {
       for (const child of nodes) {
         if (!Array.isArray(child) || typeof child[0] !== "string") continue;
         const [tag, childAttrs, ...rest] = child as ElementNode;
-        if (tag === "source") sources.push(cleanAttrs(childAttrs));
+        if (tag === "source") sources.push(splitAttrs(childAttrs, []).htmlAttrs);
         /* First img wins; picture allows exactly one. */ else if (tag === "img" && img === null) {
-          img = cleanAttrs(childAttrs);
+          img = splitAttrs(childAttrs, []).htmlAttrs;
         } else if (tag === "p") walk(rest);
       }
     };

@@ -1,15 +1,13 @@
 import type { ElementNodeAttributes } from "../types";
 
-/** Drop nullish values; never include the `$` parser metadata. */
+/**
+ * Drop nullish values; never include the `$` parser metadata.
+ *
+ * @deprecated Kept for API compatibility — it is exactly
+ * {@link splitAttrs}`(attrs, []).htmlAttrs`; call that instead.
+ */
 export function cleanAttrs(attrs: ElementNodeAttributes | undefined): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  if (!attrs) return out;
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === "$") continue;
-    if (v === null || v === undefined) continue;
-    out[k] = v;
-  }
-  return out;
+  return splitAttrs(attrs, []).htmlAttrs;
 }
 
 /**
@@ -63,18 +61,26 @@ export function mergeAttrs(
 }
 
 /**
+ * The global `htmlAttrs` bag of a ProseMirror node/mark, normalised to a
+ * Record: a missing bag — or any non-object value — reads as `{}`, so callers
+ * can hand it straight to {@link mergeAttrs} or spread it.
+ */
+export function readHtmlAttrsBag(
+  node: { attrs?: { htmlAttrs?: unknown } | null } | null | undefined,
+): Record<string, unknown> {
+  const bag = node?.attrs?.htmlAttrs;
+  return bag && typeof bag === "object" ? (bag as Record<string, unknown>) : {};
+}
+
+/**
  * Whether a node's `htmlAttrs` bag is effectively empty — both a missing bag
  * and `{}` count as empty.
  */
 export function hasNoHtmlAttrs(
   node: { attrs?: { htmlAttrs?: unknown } } | null | undefined,
 ): boolean {
-  if (!node) return true;
-  const html = node.attrs?.htmlAttrs as Record<string, unknown> | null | undefined;
-  if (!html) return true;
-  if (typeof html !== "object") return true;
   // PM fills the `{}` default on any DOM round-trip, so `{}` means attrless.
-  return Object.keys(html).length === 0;
+  return Object.keys(readHtmlAttrsBag(node)).length === 0;
 }
 
 /**

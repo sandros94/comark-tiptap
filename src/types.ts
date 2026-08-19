@@ -90,8 +90,14 @@ export interface NodeSpec {
   context?: "block" | "inline" | "inline-block";
   /** ProseMirror JSON node → Comark element. */
   toComark: (node: JSONContent, h: ComarkHelpers) => Node | null;
-  /** Comark element → ProseMirror JSON node. */
-  fromComark: (el: ElementNode, h: ComarkHelpers) => JSONContent | null;
+  /**
+   * Comark element → ProseMirror JSON node. Declared as a method (bivariant
+   * parameters) so a spec can narrow `el` to the kind it is dispatched for:
+   * tag-dispatched specs only ever receive an `ElementNode`, while a spec
+   * routed by `pmName` alone can receive the comment tuple
+   * (`[null, attrs, text]`).
+   */
+  fromComark(el: ElementNode | CommentNode, h: ComarkHelpers): JSONContent | null;
   /**
    * Disambiguates specs that share a tag: the first whose `matches` returns
    * `true` wins, otherwise registration order decides.

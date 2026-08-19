@@ -1,4 +1,5 @@
 import { Node, mergeAttributes, type Node as TiptapNode } from "@tiptap/core";
+import { readHtmlAttrsBag } from "../utils/attrs";
 import { autoUnwrapBlocks } from "../utils/auto-unwrap";
 import { htmlAttrSpec } from "../utils/html-attrs";
 import type {
@@ -226,11 +227,7 @@ export function defineComarkComponent<TNodeView = unknown>(
       for (const name of Object.keys(declared)) {
         if (node.attrs && name in node.attrs) propsBag[name] = node.attrs[name];
       }
-      const attrs = writePropsAndHtml(
-        propsBag,
-        (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-        declared,
-      );
+      const attrs = writePropsAndHtml(propsBag, readHtmlAttrsBag(node), declared);
       /*
        * Block components mirror Comark's autoUnwrap: a single attrless
        * paragraph child flattens to inlines. Inline components hold inline

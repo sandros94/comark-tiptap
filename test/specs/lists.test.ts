@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { boldSpec } from "../../src/specs/marks";
+import { pictureSpec } from "../../src/specs/picture";
 import { createSerializer } from "../../src/serializer";
-import type { ElementNode } from "../../src/types";
+import type { ElementNode, JSONContent } from "../../src/types";
 import { bulletListSpec, listItemSpec, orderedListSpec } from "../../src/specs/lists";
 import { paragraphSpec } from "../../src/specs/paragraph";
 
@@ -121,5 +122,39 @@ describe("listItemSpec", () => {
       ],
     };
     expect(listItemSpec.toComark(pm, helpers)).toEqual(["li", {}, ["p", { class: "lead" }, "x"]]);
+  });
+});
+
+describe("listItem with dual-context atoms (picture)", () => {
+  const picHelpers = createSerializer({
+    nodes: [paragraphSpec, listItemSpec, bulletListSpec, orderedListSpec, pictureSpec],
+    marks: [boldSpec],
+  });
+  const PIC: ElementNode = ["picture", {}, ["img", { src: "/a.png" }]];
+  const PIC_PM: JSONContent = { type: "picture", attrs: { sources: [], img: { src: "/a.png" } } };
+
+  it("emits a bare picture for a sole picture-only paragraph", () => {
+    const pm: JSONContent = {
+      type: "listItem",
+      content: [{ type: "paragraph", content: [PIC_PM] }],
+    };
+    const el = listItemSpec.toComark(pm, picHelpers) as ElementNode;
+    expect(el).toEqual(["li", {}, PIC]);
+    const back = listItemSpec.fromComark(el, picHelpers)!;
+    expect(back.content).toEqual([{ type: "paragraph", content: [PIC_PM] }]);
+  });
+
+  it("hoists a picture-only paragraph sitting beside a text paragraph", () => {
+    const pm: JSONContent = {
+      type: "listItem",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "A" }] },
+        { type: "paragraph", content: [PIC_PM] },
+      ],
+    };
+    const el = listItemSpec.toComark(pm, picHelpers) as ElementNode;
+    expect(el).toEqual(["li", {}, ["p", {}, "A"], PIC]);
+    const back = listItemSpec.fromComark(el, picHelpers)!;
+    expect(back.content).toEqual(pm.content);
   });
 });

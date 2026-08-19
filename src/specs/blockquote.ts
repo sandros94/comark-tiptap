@@ -1,4 +1,4 @@
-import { mergeAttrs, splitAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
 import { autoUnwrapBlocks } from "../utils/auto-unwrap";
 import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
@@ -8,10 +8,7 @@ export const blockquoteSpec: NodeSpec = {
   tags: ["blockquote"],
 
   toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs({}, readHtmlAttrsBag(node));
     /* Comark autoUnwraps single-paragraph blockquotes; mirror on serialize so `> Look **here** thanks.` round-trips clean. */
     return ["blockquote", attrs, ...autoUnwrapBlocks(node.content, h)];
   },

@@ -1,4 +1,4 @@
-import { mergeAttrs, splitAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
 import type { ElementNode, JSONContent, NodeSpec } from "../types";
 
 /* `srcset` is first-class on `ComarkImage` (display resolution), not htmlAttrs. */
@@ -20,10 +20,7 @@ export const imageSpec: NodeSpec = {
     /* Comark stores numeric attrs as strings (`{width="320"}`); normalise on output so the AST stays stable across DOM round-trips that may coerce them to numbers. */
     if (node.attrs?.width != null) semantic.width = String(node.attrs.width);
     if (node.attrs?.height != null) semantic.height = String(node.attrs.height);
-    const attrs = mergeAttrs(
-      semantic,
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs(semantic, readHtmlAttrsBag(node));
     return ["img", attrs];
   },
 

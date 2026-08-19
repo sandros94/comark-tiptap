@@ -1,98 +1,20 @@
-import { mergeAttrs, splitAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
+import { exactMarkSpec } from "./exact";
 import type { ElementNode, Node, MarkSpec, PMMark } from "../types";
 
-// #region bold
+// #region exact-match marks
 
 /** bold ↔ Comark `strong` (also reads `b`). */
-export const boldSpec: MarkSpec = {
-  pmName: "bold",
-  tags: ["strong", "b"],
-
-  toComark(mark: PMMark, children: Node[]): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
-    return ["strong", attrs, ...children];
-  },
-
-  fromComark(el: ElementNode): PMMark {
-    const { htmlAttrs } = splitAttrs(el[1], []);
-    return Object.keys(htmlAttrs).length > 0
-      ? { type: "bold", attrs: { htmlAttrs } }
-      : { type: "bold" };
-  },
-};
-
-// #region italic
+export const boldSpec = exactMarkSpec("bold", "strong", ["b"]);
 
 /** italic ↔ Comark `em` (also reads `i`). */
-export const italicSpec: MarkSpec = {
-  pmName: "italic",
-  tags: ["em", "i"],
+export const italicSpec = exactMarkSpec("italic", "em", ["i"]);
 
-  toComark(mark: PMMark, children: Node[]): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
-    return ["em", attrs, ...children];
-  },
-
-  fromComark(el: ElementNode): PMMark {
-    const { htmlAttrs } = splitAttrs(el[1], []);
-    return Object.keys(htmlAttrs).length > 0
-      ? { type: "italic", attrs: { htmlAttrs } }
-      : { type: "italic" };
-  },
-};
-
-// #region strike
-
-/** strike ↔ Comark `del` (canonical); reads `s`/`strike` too. */
-export const strikeSpec: MarkSpec = {
-  pmName: "strike",
-  /* Comark canonicalises strikethrough to `<del>` on parse; `<s>`/`<strike>` are listed for hand-authored ASTs. */
-  tags: ["del", "s", "strike"],
-
-  toComark(mark: PMMark, children: Node[]): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
-    return ["del", attrs, ...children];
-  },
-
-  fromComark(el: ElementNode): PMMark {
-    const { htmlAttrs } = splitAttrs(el[1], []);
-    return Object.keys(htmlAttrs).length > 0
-      ? { type: "strike", attrs: { htmlAttrs } }
-      : { type: "strike" };
-  },
-};
-
-// #region code
+/** strike ↔ Comark `del`. Comark canonicalises strikethrough to `<del>` on parse; `s`/`strike` are read for hand-authored ASTs. */
+export const strikeSpec = exactMarkSpec("strike", "del", ["s", "strike"]);
 
 /** code (inline) ↔ Comark `code`. */
-export const codeSpec: MarkSpec = {
-  pmName: "code",
-  tags: ["code"],
-
-  toComark(mark: PMMark, children: Node[]): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
-    return ["code", attrs, ...children];
-  },
-
-  fromComark(el: ElementNode): PMMark {
-    const { htmlAttrs } = splitAttrs(el[1], []);
-    return Object.keys(htmlAttrs).length > 0
-      ? { type: "code", attrs: { htmlAttrs } }
-      : { type: "code" };
-  },
-};
+export const codeSpec = exactMarkSpec("code", "code");
 
 // #region link
 
@@ -112,10 +34,7 @@ export const linkSpec: MarkSpec = {
     if (mark.attrs?.target != null && mark.attrs.target !== "") semantic.target = mark.attrs.target;
     if (mark.attrs?.rel != null && mark.attrs.rel !== "") semantic.rel = mark.attrs.rel;
     if (mark.attrs?.class != null && mark.attrs.class !== "") semantic.class = mark.attrs.class;
-    const attrs = mergeAttrs(
-      semantic,
-      (mark.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs(semantic, readHtmlAttrsBag(mark));
     return ["a", attrs, ...children];
   },
 

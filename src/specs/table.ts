@@ -1,4 +1,5 @@
-import { hasNoHtmlAttrs, mergeAttrs, splitAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
+import { autoUnwrapBlocks } from "../utils/auto-unwrap";
 import type { ElementNode, ComarkHelpers, Node, JSONContent, NodeSpec } from "../types";
 
 // #region table
@@ -9,10 +10,7 @@ export const tableSpec: NodeSpec = {
   tags: ["table"],
 
   toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs({}, readHtmlAttrsBag(node));
 
     const rows = (node.content ?? []).filter((r) => r.type === "tableRow");
     const isAllHeaders = (row: JSONContent): boolean =>
@@ -91,10 +89,7 @@ export const tableRowSpec: NodeSpec = {
   tags: ["tr"],
 
   toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
-    const attrs = mergeAttrs(
-      {},
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs({}, readHtmlAttrsBag(node));
     return ["tr", attrs, ...h.serializeBlocks(node.content)];
   },
 
@@ -158,7 +153,7 @@ function makeCellSpec(pmName: "tableHeader" | "tableCell", tag: "th" | "td"): No
       if (colwidth != null) semantic.colwidth = colwidth;
 
       const htmlAttrs: Record<string, unknown> = {
-        ...(node.attrs?.htmlAttrs as Record<string, unknown> | undefined),
+        ...readHtmlAttrsBag(node),
       };
       if (typeof align === "string" && align.length > 0) {
         htmlAttrs.style = withTextAlign(htmlAttrs.style, align);
@@ -167,11 +162,7 @@ function makeCellSpec(pmName: "tableHeader" | "tableCell", tag: "th" | "td"): No
       const attrs = mergeAttrs(semantic, htmlAttrs);
 
       /* A single attrless paragraph flattens to inlines (canonical markdown cell); anything else serializes as blocks. DOM-roundtripped cells (PM-default `htmlAttrs: {}`) still count as attrless. */
-      const content = node.content ?? [];
-      if (content.length === 1 && content[0]?.type === "paragraph" && hasNoHtmlAttrs(content[0])) {
-        return [tag, attrs, ...h.serializeInlines(content[0]?.content)];
-      }
-      return [tag, attrs, ...h.serializeBlocks(content)];
+      return [tag, attrs, ...autoUnwrapBlocks(node.content, h)];
     },
 
     fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {

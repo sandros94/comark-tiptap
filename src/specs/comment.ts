@@ -1,5 +1,5 @@
-import { mergeAttrs, splitAttrs } from "../utils/attrs";
-import type { CommentNode, ElementNode, JSONContent, NodeSpec } from "../types";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
+import type { CommentNode, JSONContent, NodeSpec } from "../types";
 
 const SEMANTIC_KEYS = ["text"] as const;
 
@@ -11,18 +11,15 @@ export const commentSpec: NodeSpec = {
 
   toComark(node: JSONContent): CommentNode {
     const text = (node.attrs?.text as string | undefined) ?? "";
-    const attrs = mergeAttrs(
-      {},
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs({}, readHtmlAttrsBag(node));
     return [null, attrs, text];
   },
 
-  fromComark(el: ElementNode): JSONContent | null {
-    // Cast to the comment shape — orchestrator only routes comments here.
-    const comment = el as unknown as CommentNode;
-    const text = comment[2] ?? "";
-    const { htmlAttrs } = splitAttrs(comment[1], SEMANTIC_KEYS);
+  /* Narrowed to the comment tuple: the orchestrator routes comments here by
+     `pmName`, never by tag, so an ElementNode can't reach this spec. */
+  fromComark(el: CommentNode): JSONContent {
+    const text = el[2] ?? "";
+    const { htmlAttrs } = splitAttrs(el[1], SEMANTIC_KEYS);
     const attrs: Record<string, unknown> = { text };
     if (Object.keys(htmlAttrs).length > 0) attrs.htmlAttrs = htmlAttrs;
     return { type: "comarkComment", attrs };

@@ -1,4 +1,4 @@
-import { mergeAttrs, splitAttrs } from "../utils/attrs";
+import { mergeAttrs, readHtmlAttrsBag, splitAttrs } from "../utils/attrs";
 import { autoUnwrapBlocks } from "../utils/auto-unwrap";
 import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
@@ -12,10 +12,7 @@ export const templateSpec: NodeSpec = {
   toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const semantic: Record<string, unknown> = {};
     if (node.attrs?.name != null) semantic.name = node.attrs.name;
-    const attrs = mergeAttrs(
-      semantic,
-      (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
-    );
+    const attrs = mergeAttrs(semantic, readHtmlAttrsBag(node));
     /* Comark autoUnwraps single-paragraph slots; mirror so a one-line template round-trips clean. */
     return ["template", attrs, ...autoUnwrapBlocks(node.content, h)];
   },

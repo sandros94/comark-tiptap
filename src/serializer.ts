@@ -245,7 +245,7 @@ export function createSerializer(specs: SerializerSpecs): ComarkHelpers {
         flushInlines();
         const spec = nodeByPmName.get("comarkComment");
         if (spec) {
-          const result = spec.fromComark(child as unknown as ElementNode, helpers);
+          const result = spec.fromComark(child, helpers);
           if (result) out.push(result);
         }
         continue;
