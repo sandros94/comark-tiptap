@@ -2,8 +2,8 @@ import { Node, mergeAttributes, type Node as TiptapNode } from "@tiptap/core";
 import { autoUnwrapBlocks } from "../utils/auto-unwrap";
 import { htmlAttrSpec } from "../utils/html-attrs";
 import type {
-  ComarkElement,
-  ComarkElementAttributes,
+  ElementNode,
+  ElementNodeAttributes,
   ComarkHelpers,
   JSONContent,
   NodeSpec,
@@ -123,7 +123,7 @@ function encodePropValue(
  * the rest into htmlAttrs.
  */
 function readPropsAndHtml(
-  attrs: ComarkElementAttributes | undefined,
+  attrs: ElementNodeAttributes | undefined,
   declared: Record<string, ComarkComponentProp>,
 ): { props: Record<string, unknown>; htmlAttrs: Record<string, unknown> } {
   const props: Record<string, unknown> = {};
@@ -166,8 +166,8 @@ function writePropsAndHtml(
   props: Record<string, unknown>,
   htmlAttrs: Record<string, unknown>,
   declared: Record<string, ComarkComponentProp>,
-): ComarkElementAttributes {
-  const out: ComarkElementAttributes = {};
+): ElementNodeAttributes {
+  const out: ElementNodeAttributes = {};
 
   // Splat htmlAttrs first so semantic prop keys win on collision.
   for (const [k, v] of Object.entries(htmlAttrs)) {
@@ -221,7 +221,7 @@ export function defineComarkComponent<TNodeView = unknown>(
     tags: [def.name],
     context: isInline ? "inline" : "block",
 
-    toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+    toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
       const propsBag: Record<string, unknown> = {};
       for (const name of Object.keys(declared)) {
         if (node.attrs && name in node.attrs) propsBag[name] = node.attrs[name];
@@ -242,7 +242,7 @@ export function defineComarkComponent<TNodeView = unknown>(
       return [def.name, attrs, ...children];
     },
 
-    fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+    fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
       const [, rawAttrs, ...children] = el;
       const { props, htmlAttrs } = readPropsAndHtml(rawAttrs, declared);
       const attrs: Record<string, unknown> = { ...props };

@@ -13,7 +13,7 @@ import { defineComarkComponent } from "../src/extensions/component";
 import { ComarkKit } from "../src/kit";
 import { comarkToPmDoc, createSerializer, pmDocToComark } from "../src/serializer";
 import { comarkSpecs } from "../src/specs";
-import type { ComarkHelpers, ComarkNode, ComarkTree } from "../src/types";
+import type { ComarkHelpers, Node, MarkdownDocument } from "../src/types";
 
 // #region internal helpers
 
@@ -24,14 +24,14 @@ const baseHelpers = createSerializer(comarkSpecs);
  * bookkeeping that tests don't care about. Both directions of the
  * round-trip should produce trees comparable up to this scrub.
  */
-function cleanTree(tree: ComarkTree): ComarkTree {
+function cleanTree(tree: MarkdownDocument): MarkdownDocument {
   return {
     nodes: tree.nodes.map(cleanNode),
     frontmatter: { ...tree.frontmatter },
     meta: {},
   };
 }
-function cleanNode(node: ComarkNode): ComarkNode {
+function cleanNode(node: Node): Node {
   if (typeof node === "string") return node;
   if (!Array.isArray(node)) return node;
   const [tag, attrs, ...children] = node;
@@ -40,7 +40,7 @@ function cleanNode(node: ComarkNode): ComarkNode {
     if (k === "$") continue;
     cleanAttrs[k] = v;
   }
-  return [tag, cleanAttrs, ...children.map((c) => cleanNode(c as ComarkNode))] as ComarkNode;
+  return [tag, cleanAttrs, ...children.map((c) => cleanNode(c as Node))] as Node;
 }
 
 const defaultExtensions: AnyExtension[] = [ComarkKit];
@@ -50,10 +50,10 @@ const defaultExtensions: AnyExtension[] = [ComarkKit];
  * Both ends are scrubbed before comparison.
  */
 function domRoundTrip(
-  tree: ComarkTree,
+  tree: MarkdownDocument,
   extensions: AnyExtension[] = defaultExtensions,
   helpers: ComarkHelpers = baseHelpers,
-): ComarkTree {
+): MarkdownDocument {
   const pmIn = comarkToPmDoc(tree, helpers);
   const html = generateHTML(pmIn, extensions);
   const pmOut = generateJSON(html, extensions) as TipJSONContent;
@@ -63,7 +63,7 @@ function domRoundTrip(
 // #region per-node coverage
 
 describe("DOM round-trip — block nodes", () => {
-  it.each<[string, ComarkTree]>([
+  it.each<[string, MarkdownDocument]>([
     [
       "paragraph with htmlAttrs",
       {
@@ -131,7 +131,7 @@ describe("DOM round-trip — code block", () => {
   // generateHTML/generateJSON pass — those are covered by the
   // spec-only test in [code-block.test.ts].
   it("preserves the canonical pre+code shape with outer html attrs", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         [
           "pre",
@@ -151,7 +151,7 @@ describe("DOM round-trip — code block", () => {
   // element. This test pins that down so a future refactor can't
   // silently drop the feature.
   it("preserves extra inner-<code> attributes (e.g. data-line-numbers)", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         [
           "pre",
@@ -168,7 +168,7 @@ describe("DOM round-trip — code block", () => {
 
 describe("DOM round-trip — image (inline atom)", () => {
   it("preserves src/alt/title plus extra html attrs", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         [
           "p",
@@ -193,7 +193,7 @@ describe("DOM round-trip — image (inline atom)", () => {
   });
 
   it("preserves srcset (first-class attr, not htmlAttrs)", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["p", {}, ["img", { src: "/x.png", srcset: "/x.png 1x, /x-2x.png 2x", alt: "A" }]]],
       frontmatter: {},
       meta: {},
@@ -204,18 +204,15 @@ describe("DOM round-trip — image (inline atom)", () => {
 
 describe("DOM round-trip — picture (inline atom)", () => {
   it("preserves sources, the inner img, and the tag's own html attrs", () => {
-    const tree: ComarkTree = {
+    // Standalone pictures serialize top-level (sole-child paragraph hoists out).
+    const tree: MarkdownDocument = {
       nodes: [
         [
-          "p",
-          {},
-          [
-            "picture",
-            { class: "hero" },
-            ["source", { srcset: "/a.avif 1x, /a-2x.avif 2x", type: "image/avif" }],
-            ["source", { srcset: "/a.webp", type: "image/webp" }],
-            ["img", { src: "/a.jpg", alt: "A", width: "320" }],
-          ],
+          "picture",
+          { class: "hero" },
+          ["source", { srcset: "/a.avif 1x, /a-2x.avif 2x", type: "image/avif" }],
+          ["source", { srcset: "/a.webp", type: "image/webp" }],
+          ["img", { src: "/a.jpg", alt: "A", width: "320" }],
         ],
       ],
       frontmatter: {},
@@ -227,7 +224,7 @@ describe("DOM round-trip — picture (inline atom)", () => {
 
 describe("DOM round-trip — hardBreak", () => {
   it("round-trips a bare <br>", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["p", {}, "a", ["br", {}], "b"]],
       frontmatter: {},
       meta: {},
@@ -236,7 +233,7 @@ describe("DOM round-trip — hardBreak", () => {
   });
 
   it("preserves htmlAttrs on a <br>", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["p", {}, "a", ["br", { "aria-hidden": "true", "class": "soft" }], "b"]],
       frontmatter: {},
       meta: {},
@@ -247,7 +244,7 @@ describe("DOM round-trip — hardBreak", () => {
 
 describe("DOM round-trip — comment node", () => {
   it("preserves a non-empty comment text", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [[null, {}, "TODO: write more here"] as never, ["p", {}, "After"]],
       frontmatter: {},
       meta: {},
@@ -256,7 +253,7 @@ describe("DOM round-trip — comment node", () => {
   });
 
   it("preserves htmlAttrs alongside the text", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [[null, { "class": "todo", "data-priority": "high" }, "review later"] as never],
       frontmatter: {},
       meta: {},
@@ -269,7 +266,7 @@ describe("DOM round-trip — comment node", () => {
 
 describe("DOM round-trip — lists", () => {
   it("round-trips a bullet list with single-paragraph items", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["ul", {}, ["li", {}, "one"], ["li", {}, "two"], ["li", {}, "three"]]],
       frontmatter: {},
       meta: {},
@@ -278,7 +275,7 @@ describe("DOM round-trip — lists", () => {
   });
 
   it("round-trips an ordered list with `start` preserved", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["ol", { start: "5" }, ["li", {}, "a"], ["li", {}, "b"]]],
       frontmatter: {},
       meta: {},
@@ -287,7 +284,7 @@ describe("DOM round-trip — lists", () => {
   });
 
   it("round-trips nested bullet lists", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         [
           "ul",
@@ -305,7 +302,7 @@ describe("DOM round-trip — lists", () => {
   });
 
   it("preserves htmlAttrs on the ul and on individual li", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         ["ul", { class: "task-list" }, ["li", { "data-done": "true" }, "a"], ["li", {}, "b"]],
       ],
@@ -323,7 +320,7 @@ describe("DOM round-trip — tables", () => {
   // from markdown. colspan/rowspan/colwidth aren't emitted by the parser
   // and are covered by the spec-level [table.test.ts] tests instead.
   it("round-trips a header + body table with thead/tbody regrouping", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         [
           "table",
@@ -342,7 +339,7 @@ describe("DOM round-trip — tables", () => {
 // #region marks
 
 describe("DOM round-trip — marks", () => {
-  it.each<[string, ComarkTree]>([
+  it.each<[string, MarkdownDocument]>([
     [
       "bold",
       {
@@ -398,7 +395,7 @@ describe("DOM round-trip — marks", () => {
   });
 
   it("layered marks (bold around italic) round-trip both layers", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["p", {}, ["strong", {}, ["em", {}, "BI"]]]],
       frontmatter: {},
       meta: {},
@@ -415,12 +412,12 @@ describe("DOM round-trip — adjacent same-mark spans", () => {
   // re-emit as one `<strong>` span. We round-trip via the orchestrator,
   // so what matters is that the final tree is *equivalent*.
   it("collapses two attrless <strong> runs into one on the way back", () => {
-    const start: ComarkTree = {
+    const start: MarkdownDocument = {
       nodes: [["p", {}, ["strong", {}, "X"], ["strong", {}, "Y"]]],
       frontmatter: {},
       meta: {},
     };
-    const expected: ComarkTree = {
+    const expected: MarkdownDocument = {
       nodes: [["p", {}, ["strong", {}, "XY"]]],
       frontmatter: {},
       meta: {},
@@ -431,7 +428,7 @@ describe("DOM round-trip — adjacent same-mark spans", () => {
   // Same mark, different `htmlAttrs` → must NOT collapse, otherwise
   // class/id/data-* differences silently merge.
   it("keeps two same-mark runs separate when htmlAttrs differ", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["p", {}, ["strong", { class: "a" }, "X"], ["strong", { class: "b" }, "Y"]]],
       frontmatter: {},
       meta: {},
@@ -464,7 +461,7 @@ describe("DOM round-trip — custom components", () => {
   });
 
   it("round-trips a block component with declared props + extra htmlAttrs", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         ["alert", { type: "warning", title: "Heads up", class: "ring" }, "Body **text** here."],
       ],
@@ -475,7 +472,7 @@ describe("DOM round-trip — custom components", () => {
   });
 
   it("round-trips an inline component nested in a paragraph", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["p", {}, "Status: ", ["badge", { color: "green" }, "New"], "."]],
       frontmatter: {},
       meta: {},
@@ -484,7 +481,7 @@ describe("DOM round-trip — custom components", () => {
   });
 
   it("round-trips an inline component INSIDE a list item (lists.ts block element regression)", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         [
           "ul",

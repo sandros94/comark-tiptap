@@ -1,5 +1,5 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
-import type { ComarkElement, JSONContent, NodeSpec } from "../types";
+import type { ElementNode, JSONContent, NodeSpec } from "../types";
 
 /** hardBreak ↔ Comark `br`. */
 export const hardBreakSpec: NodeSpec = {
@@ -7,7 +7,7 @@ export const hardBreakSpec: NodeSpec = {
   tags: ["br"],
   context: "inline",
 
-  toComark(node: JSONContent): ComarkElement {
+  toComark(node: JSONContent): ElementNode {
     const attrs = mergeAttrs(
       {},
       (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
@@ -15,7 +15,7 @@ export const hardBreakSpec: NodeSpec = {
     return ["br", attrs];
   },
 
-  fromComark(el: ComarkElement): JSONContent {
+  fromComark(el: ElementNode): JSONContent {
     const [, rawAttrs] = el;
     const { htmlAttrs } = splitAttrs(rawAttrs, []);
     const out: JSONContent = { type: "hardBreak" };

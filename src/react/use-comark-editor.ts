@@ -4,11 +4,11 @@ import type { AnyExtension, Content, EditorOptions } from "@tiptap/core";
 import {
   applyContent,
   ComarkKit,
-  isComarkTreeLike,
+  isMarkdownDocumentLike,
   readByFlavor,
   type ComarkErrorHandler,
   type ComarkKitOptions,
-  type ComarkTree,
+  type MarkdownDocument,
   type ContentType,
   type ContentValue,
   type JSONContent,
@@ -56,7 +56,7 @@ export interface UseComarkEditorReturn {
   isReady: boolean;
   /** Replace content; routes by `contentType`. Accepts a value or a functional updater. */
   setContent: (input: SetterInput<ContentValue>, options?: SetContentOptions) => Promise<void>;
-  getAst: () => ComarkTree | null;
+  getAst: () => MarkdownDocument | null;
   getMarkdown: () => Promise<string | null>;
   getJson: () => JSONContent | null;
   getHtml: () => string | null;
@@ -112,10 +112,10 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
   ];
 
   const initialValue = init.content;
-  /* AST seeds (contentType 'ast', or an auto-detected ComarkTree) can't pass
+  /* AST seeds (contentType 'ast', or an auto-detected MarkdownDocument) can't pass
      through Tiptap's constructor — apply them via setComarkAst in onCreate. */
   const useAstSeed =
-    initialValue !== undefined && (contentType === "ast" || isComarkTreeLike(initialValue));
+    initialValue !== undefined && (contentType === "ast" || isMarkdownDocumentLike(initialValue));
   const tiptapContent: Content | undefined = useAstSeed
     ? undefined
     : ((initialValue as Content | undefined) ?? undefined);
@@ -132,7 +132,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
       ...(tiptapContentType ? { contentType: tiptapContentType } : {}),
       onCreate({ editor: e }) {
         if (useAstSeed) {
-          e.commands.setComarkAst(initialValue as ComarkTree | string, { emitUpdate: false });
+          e.commands.setComarkAst(initialValue as MarkdownDocument | string, { emitUpdate: false });
         }
         cbs.current.onCreate?.(e as Editor);
       },
@@ -171,7 +171,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
   );
 
   const getAst = useCallback(
-    (): ComarkTree | null => editor?.storage.comark.getAst() ?? null,
+    (): MarkdownDocument | null => editor?.storage.comark.getAst() ?? null,
     [editor],
   );
   const getMarkdown = useCallback(

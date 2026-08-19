@@ -22,7 +22,7 @@ import {
 } from "vue";
 import { Editor, NodeViewWrapper } from "@tiptap/vue-3";
 import { ComarkKit } from "comark-tiptap";
-import type { ComarkTree, ContentType, ContentValue, JSONContent } from "comark-tiptap";
+import type { MarkdownDocument, ContentType, ContentValue, JSONContent } from "comark-tiptap";
 import {
   ComarkEditor,
   defineComarkVueComponent,
@@ -196,7 +196,7 @@ describe("<ComarkEditor> (Vue, v-model)", () => {
   });
 
   it("round-trips the ast flavor via v-model.ast", async () => {
-    const tree: ComarkTree = { nodes: [["p", {}, "ast me"]], frontmatter: {}, meta: {} };
+    const tree: MarkdownDocument = { nodes: [["p", {}, "ast me"]], frontmatter: {}, meta: {} };
     const m = mount({ initial: tree, modifiers: { ast: true } });
     live.push(m);
     const editor = await readyEditor(m);
@@ -308,7 +308,11 @@ describe("defineComarkVueComponent", () => {
       },
     });
     const Alert = defineComarkVueComponent({ name: "alert", kind: "block", nodeView: AlertView });
-    const tree: ComarkTree = { nodes: [["alert", {}, ["p", {}, "x"]]], frontmatter: {}, meta: {} };
+    const tree: MarkdownDocument = {
+      nodes: [["alert", {}, ["p", {}, "x"]]],
+      frontmatter: {},
+      meta: {},
+    };
     const m = mount({ initial: tree, modifiers: { ast: true }, components: [Alert] });
     live.push(m);
     await readyEditor(m);

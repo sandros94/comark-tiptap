@@ -1,13 +1,13 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
 import { autoUnwrapBlocks } from "../utils/auto-unwrap";
-import type { ComarkElement, ComarkHelpers, JSONContent, NodeSpec } from "../types";
+import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
 /** blockquote ↔ Comark `blockquote`. */
 export const blockquoteSpec: NodeSpec = {
   pmName: "blockquote",
   tags: ["blockquote"],
 
-  toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+  toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const attrs = mergeAttrs(
       {},
       (node.attrs?.htmlAttrs as Record<string, unknown> | undefined) ?? {},
@@ -16,7 +16,7 @@ export const blockquoteSpec: NodeSpec = {
     return ["blockquote", attrs, ...autoUnwrapBlocks(node.content, h)];
   },
 
-  fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
     const [, rawAttrs, ...children] = el;
     const { htmlAttrs } = splitAttrs(rawAttrs, []);
     /* PM's Blockquote schema is `block+`; a childless blockquote (e.g. `>\n`

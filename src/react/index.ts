@@ -18,15 +18,15 @@ export { Editor } from "@tiptap/react";
 
 /* Re-export the types most users will need from `comark-tiptap`. */
 export type {
-  ComarkCommentTuple,
-  ComarkElement,
-  ComarkElementAttributes,
+  CommentNode,
+  ElementNode,
+  ElementNodeAttributes,
   ComarkErrorContext,
   ComarkErrorHandler,
   ComarkKitOptions,
-  ComarkNode,
-  ComarkText,
-  ComarkTree,
+  Node,
+  TextNode,
+  MarkdownDocument,
   ContentType,
   ContentValue,
   JSONContent,

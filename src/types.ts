@@ -1,20 +1,20 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import type {
-  ComarkComment,
-  ComarkElement,
-  ComarkElementAttributes,
-  ComarkNode,
-  ComarkText,
-  ComarkTree,
+  CommentNode,
+  ElementNode,
+  ElementNodeAttributes,
+  Node,
+  TextNode,
+  MarkdownDocument,
 } from "comark";
 
 export type {
-  ComarkComment,
-  ComarkElement,
-  ComarkElementAttributes,
-  ComarkNode,
-  ComarkText,
-  ComarkTree,
+  CommentNode,
+  ElementNode,
+  ElementNodeAttributes,
+  Node,
+  TextNode,
+  MarkdownDocument,
   JSONContent,
 };
 
@@ -45,15 +45,15 @@ export interface PMMark {
  * Content flavor shared by the framework bindings. Drives input dispatch
  * (which command runs) and output read-back (which getter).
  *
- * - `'markdown'` — `comark.parse` (async) in, `getMarkdown()` out.
+ * - `'markdown'` — `parseMarkdown` (async) in, `getMarkdown()` out.
  * - `'html'` — Tiptap's stock HTML pipeline.
  * - `'json'` — ProseMirror JSON (`JSONContent` or JSON string).
- * - `'ast'` — Comark AST (`ComarkTree` or JSON string), via `setComarkAst` / `getAst`.
+ * - `'ast'` — Comark AST (`MarkdownDocument` or JSON string), via `setComarkAst` / `getAst`.
  */
 export type ContentType = "markdown" | "html" | "json" | "ast";
 
 /** A value the editor can be seeded/set with. Routed by {@link ContentType}. */
-export type ContentValue = ComarkTree | JSONContent | string;
+export type ContentValue = MarkdownDocument | JSONContent | string;
 
 /** Context passed to the functional-updater form of a binding's `setContent`. */
 export interface SetterContext<T> {
@@ -80,20 +80,23 @@ export interface NodeSpec {
   tags: readonly string[];
   /**
    * Inline atoms (`hardBreak`, `image`, inline components) live inside a
-   * paragraph; blocks stand alone.
+   * paragraph; blocks stand alone. `'inline-block'` marks a dual-context atom
+   * (picture): inline in PM and in text runs, but hoisted back to a top-level
+   * element when it is an attrless paragraph's only child — the shape comark
+   * parses the bare block directive into.
    *
    * @default 'block'
    */
-  context?: "block" | "inline";
+  context?: "block" | "inline" | "inline-block";
   /** ProseMirror JSON node → Comark element. */
-  toComark: (node: JSONContent, h: ComarkHelpers) => ComarkNode | null;
+  toComark: (node: JSONContent, h: ComarkHelpers) => Node | null;
   /** Comark element → ProseMirror JSON node. */
-  fromComark: (el: ComarkElement, h: ComarkHelpers) => JSONContent | null;
+  fromComark: (el: ElementNode, h: ComarkHelpers) => JSONContent | null;
   /**
    * Disambiguates specs that share a tag: the first whose `matches` returns
    * `true` wins, otherwise registration order decides.
    */
-  matches?: (el: ComarkElement) => boolean;
+  matches?: (el: ElementNode) => boolean;
 }
 
 /** Serialization spec for one mark type: ProseMirror mark ↔ Comark element. */
@@ -106,21 +109,23 @@ export interface MarkSpec {
    * mark spanning mixed content (`**a _b_ c**`) becomes one element, not one
    * per run.
    */
-  toComark: (mark: PMMark, children: ComarkNode[]) => ComarkElement;
+  toComark: (mark: PMMark, children: Node[]) => ElementNode;
   /** Read this mark off a Comark element. */
-  fromComark: (el: ComarkElement) => PMMark | null;
+  fromComark: (el: ElementNode) => PMMark | null;
 }
 
 /** Recursion helpers handed to every `toComark` / `fromComark` for nested children. */
 export interface ComarkHelpers {
+  /** Look up a node spec by its ProseMirror type name (`Map`-backed). */
+  getNodeSpec: (pmName: string) => NodeSpec | undefined;
   /** ProseMirror block children → Comark nodes. */
-  serializeBlocks: (content: JSONContent[] | undefined) => ComarkNode[];
+  serializeBlocks: (content: JSONContent[] | undefined) => Node[];
   /** ProseMirror inline children (text, marks, inline atoms) → Comark nodes. */
-  serializeInlines: (content: JSONContent[] | undefined) => ComarkNode[];
+  serializeInlines: (content: JSONContent[] | undefined) => Node[];
   /** Comark block-context children → ProseMirror JSON nodes. */
-  parseBlocks: (children: ComarkNode[]) => JSONContent[];
+  parseBlocks: (children: Node[]) => JSONContent[];
   /** Comark inline-context children → ProseMirror JSON nodes. */
-  parseInlines: (children: ComarkNode[]) => JSONContent[];
+  parseInlines: (children: Node[]) => JSONContent[];
   /** Node specs the serializer was built with. */
   nodeSpecs: readonly NodeSpec[];
   /** Mark specs the serializer was built with. */

@@ -1,5 +1,5 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
-import type { ComarkElement, ComarkHelpers, JSONContent, NodeSpec } from "../types";
+import type { ElementNode, ComarkHelpers, JSONContent, NodeSpec } from "../types";
 
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 
@@ -13,7 +13,7 @@ export const headingSpec: NodeSpec = {
   pmName: "heading",
   tags: HEADING_TAGS,
 
-  toComark(node: JSONContent, h: ComarkHelpers): ComarkElement {
+  toComark(node: JSONContent, h: ComarkHelpers): ElementNode {
     const level = clampLevel(Number(node.attrs?.level ?? 1));
     const attrs = mergeAttrs(
       {},
@@ -22,7 +22,7 @@ export const headingSpec: NodeSpec = {
     return [`h${level}`, attrs, ...h.serializeInlines(node.content)];
   },
 
-  fromComark(el: ComarkElement, h: ComarkHelpers): JSONContent {
+  fromComark(el: ElementNode, h: ComarkHelpers): JSONContent {
     const [tag, rawAttrs, ...children] = el;
     const level = clampLevel(Number(tag.slice(1)));
     const { htmlAttrs } = splitAttrs(rawAttrs, []);

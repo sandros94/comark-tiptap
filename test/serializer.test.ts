@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { boldSpec } from "../src/specs/marks";
 import { paragraphSpec } from "../src/specs/paragraph";
+import { pictureSpec } from "../src/specs/picture";
 import { comarkSpecs } from "../src/specs";
 import { comarkToPmDoc, createSerializer, pmDocToComark } from "../src/serializer";
-import type { ComarkNode, ComarkTree, JSONContent, PMMark } from "../src/types";
+import type { Node, MarkdownDocument, JSONContent, PMMark } from "../src/types";
 
 const helpers = createSerializer({
   nodes: [paragraphSpec],
@@ -12,7 +13,7 @@ const helpers = createSerializer({
 
 describe("createSerializer", () => {
   it("builds helpers that can round-trip a paragraph with a bold span", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["p", {}, "a ", ["strong", { class: "k" }, "B"], " c"]],
       frontmatter: {},
       meta: {},
@@ -41,7 +42,7 @@ describe("createSerializer", () => {
   });
 
   it("wraps stray block-level text in a paragraph (Comark autoUnwrap inverse)", () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: ["hello"],
       frontmatter: {},
       meta: {},
@@ -57,7 +58,7 @@ describe("createSerializer", () => {
     // A bold span at the root of an AST is unusual but valid — Comark
     // would emit it inside a paragraph normally. We wrap defensively
     // so PM stays schema-valid.
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["strong", {}, "orphan"] as never],
       frontmatter: {},
       meta: {},
@@ -70,7 +71,7 @@ describe("createSerializer", () => {
   it("splats children of an unknown block tag instead of dropping the subtree", () => {
     // Forward-compat: a tag with no registered spec must not vanish silently —
     // its children are recovered (mirrors the inline fallback).
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["section", {}, ["p", {}, "kept"]] as never],
       frontmatter: {},
       meta: {},
@@ -108,7 +109,7 @@ describe("serializeInlines — mark nesting (PM → Comark)", () => {
   const full = createSerializer(comarkSpecs);
   /* Serialize a paragraph's inline children straight through the full spec set;
      returns the Comark `p` element so nesting is visible. */
-  const inlineToComark = (content: JSONContent[]): ComarkNode =>
+  const inlineToComark = (content: JSONContent[]): Node =>
     pmDocToComark({ type: "doc", content: [{ type: "paragraph", content }] }, full).nodes[0]!;
   const run = (text: string, marks: PMMark[]): JSONContent => ({ type: "text", text, marks });
 
@@ -156,5 +157,38 @@ describe("serializeInlines — mark nesting (PM → Comark)", () => {
         run("Y", [{ type: "bold", attrs: { htmlAttrs: { class: "b" } } }]),
       ]),
     ).toEqual(["p", {}, ["strong", { class: "a" }, "X"], ["strong", { class: "b" }, "Y"]]);
+  });
+});
+
+describe("paragraph sole-child hoist (dual-context atoms)", () => {
+  const hoistHelpers = createSerializer({
+    nodes: [paragraphSpec, pictureSpec],
+    marks: [boldSpec],
+  });
+  const PIC_PM: JSONContent = {
+    type: "picture",
+    attrs: { sources: [], img: { src: "/a.png", alt: "A" } },
+  };
+  const PIC_EL: Node = ["picture", {}, ["img", { src: "/a.png", alt: "A" }]];
+
+  it("hoists a bare picture out of an attrless paragraph", () => {
+    const out = paragraphSpec.toComark({ type: "paragraph", content: [PIC_PM] }, hoistHelpers);
+    expect(out).toEqual(PIC_EL);
+  });
+
+  it("keeps the paragraph when the sole picture carries a mark", () => {
+    // A marked atom serializes to the mark's wrapper (strong/a/…) — never
+    // valid at block position, so the hoist must not fire.
+    const marked: JSONContent = { ...PIC_PM, marks: [{ type: "bold" }] };
+    const out = paragraphSpec.toComark({ type: "paragraph", content: [marked] }, hoistHelpers);
+    expect(out).toEqual(["p", {}, ["strong", {}, PIC_EL]]);
+  });
+
+  it("keeps the paragraph when it carries htmlAttrs", () => {
+    const out = paragraphSpec.toComark(
+      { type: "paragraph", attrs: { htmlAttrs: { class: "x" } }, content: [PIC_PM] },
+      hoistHelpers,
+    );
+    expect(out).toEqual(["p", { class: "x" }, PIC_EL]);
   });
 });

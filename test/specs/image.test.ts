@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer } from "../../src/serializer";
 import { paragraphSpec } from "../../src/specs/paragraph";
-import type { ComarkElement } from "../../src/types";
+import type { ElementNode } from "../../src/types";
 import { imageSpec } from "../../src/specs/image";
 
 const helpers = createSerializer({
@@ -11,7 +11,7 @@ const helpers = createSerializer({
 
 describe("imageSpec", () => {
   it("round-trips a basic image", () => {
-    const original: ComarkElement = ["img", { src: "/x.png", alt: "alt", title: "title" }];
+    const original: ElementNode = ["img", { src: "/x.png", alt: "alt", title: "title" }];
     const pm = imageSpec.fromComark(original, helpers)!;
     expect(pm).toEqual({
       type: "image",
@@ -21,7 +21,7 @@ describe("imageSpec", () => {
   });
 
   it("promotes width/height to native attrs (stock Tiptap Image declares them); class flows via htmlAttrs", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "img",
       { src: "/x.png", alt: "alt", width: "800", height: "600", class: "lead" },
     ];
@@ -40,14 +40,14 @@ describe("imageSpec", () => {
   it("preserves an explicit empty alt (decorative-image WCAG marker)", () => {
     // `alt=""` is semantically distinct from a missing alt; a truthy check
     // would drop it, so it must survive the round-trip.
-    const original: ComarkElement = ["img", { src: "/x.png", alt: "" }];
+    const original: ElementNode = ["img", { src: "/x.png", alt: "" }];
     const pm = imageSpec.fromComark(original, helpers)!;
     expect(pm.attrs?.alt).toBe("");
     expect(imageSpec.toComark(pm, helpers)).toEqual(original);
   });
 
   it("round-trips an inline image inside a paragraph", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "p",
       {},
       "see ",

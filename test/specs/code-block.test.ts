@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createSerializer } from "../../src/serializer";
-import type { ComarkElement } from "../../src/types";
+import type { ElementNode } from "../../src/types";
 import { codeBlockSpec } from "../../src/specs/code-block";
 
 const helpers = createSerializer({ nodes: [codeBlockSpec], marks: [] });
 
 describe("codeBlockSpec", () => {
   it("round-trips a basic ts code block", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "pre",
       { language: "ts" },
       ["code", { class: "language-ts" }, "const x = 1"],
@@ -22,7 +22,7 @@ describe("codeBlockSpec", () => {
   });
 
   it("preserves filename, highlights, and meta", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "pre",
       { language: "ts", filename: "a.ts", highlights: [1, 2], meta: "foo=bar" },
       ["code", { class: "language-ts" }, "x"],
@@ -38,7 +38,7 @@ describe("codeBlockSpec", () => {
   });
 
   it("preserves htmlAttrs on the outer pre", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "pre",
       { "language": "ts", "class": "shiki", "data-theme": "dark" },
       ["code", { class: "language-ts" }, "x"],
@@ -49,7 +49,7 @@ describe("codeBlockSpec", () => {
   });
 
   it("preserves non-language attrs on the inner code element", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "pre",
       { language: "ts" },
       ["code", { "class": "language-ts", "data-line-numbers": "true" }, "x"],
@@ -62,7 +62,7 @@ describe("codeBlockSpec", () => {
   it('drops the redundant `class="language-x"` on the inner code (it is derivable)', () => {
     // After round-trip, the inner code's class is recomputed from `language`,
     // so it should be exactly one entry — no duplicates, no leftover class.
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "pre",
       { language: "ts" },
       ["code", { class: "language-ts" }, "x"],
@@ -72,7 +72,7 @@ describe("codeBlockSpec", () => {
   });
 
   it("handles a language-less code block", () => {
-    const original: ComarkElement = ["pre", {}, ["code", {}, "plain"]];
+    const original: ElementNode = ["pre", {}, ["code", {}, "plain"]];
     const pm = codeBlockSpec.fromComark(original, helpers)!;
     expect(pm.attrs).toBeUndefined();
     expect(codeBlockSpec.toComark(pm, helpers)).toEqual(original);
@@ -84,7 +84,7 @@ describe("codeBlockSpec", () => {
       attrs: { filename: "" },
       content: [{ type: "text", text: "x" }],
     };
-    const out = codeBlockSpec.toComark(pm, helpers) as ComarkElement;
+    const out = codeBlockSpec.toComark(pm, helpers) as ElementNode;
     expect((out[1] as Record<string, unknown>).filename).toBe("");
   });
 });

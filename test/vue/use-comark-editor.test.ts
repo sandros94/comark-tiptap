@@ -19,7 +19,7 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, defineComponent, h, nextTick, ref, shallowRef, type App } from "vue";
-import type { ComarkTree } from "comark-tiptap";
+import type { MarkdownDocument } from "comark-tiptap";
 import {
   useComarkEditor,
   type UseComarkEditorOptions,
@@ -115,7 +115,7 @@ describe("useComarkEditor — initial seed (plain values)", () => {
   });
 
   it('mounts with a Comark AST seed via contentType="ast"', async () => {
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [
         ["h2", {}, "AST seed"],
         ["p", {}, "inline"],
@@ -191,8 +191,8 @@ describe("useComarkEditor — reactive content (ref / getter)", () => {
 
   it("watches a getter (() => value) and propagates updates", async () => {
     // shallowRef avoids Vue's deep `UnwrapRef` recursing through
-    // Comark's recursive `ComarkNode` union (TS2589 with plain `ref`).
-    const tree = shallowRef<ComarkTree>({
+    // Comark's recursive `Node` union (TS2589 with plain `ref`).
+    const tree = shallowRef<MarkdownDocument>({
       nodes: [["h1", {}, "first"]],
       frontmatter: {},
       meta: {},
@@ -211,7 +211,7 @@ describe("useComarkEditor — reactive content (ref / getter)", () => {
   it("plain (non-reactive) content is mount-only and ignores later mutation", async () => {
     // Plain object — composable doesn't watch it. We mutate the
     // reference after mount and assert the editor doesn't follow.
-    const tree: ComarkTree = {
+    const tree: MarkdownDocument = {
       nodes: [["h1", {}, "plain seed"]],
       frontmatter: {},
       meta: {},

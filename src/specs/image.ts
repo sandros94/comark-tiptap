@@ -1,5 +1,5 @@
 import { mergeAttrs, splitAttrs } from "../utils/attrs";
-import type { ComarkElement, JSONContent, NodeSpec } from "../types";
+import type { ElementNode, JSONContent, NodeSpec } from "../types";
 
 /* `srcset` is first-class on `ComarkImage` (display resolution), not htmlAttrs. */
 const SEMANTIC_KEYS = ["src", "alt", "title", "srcset", "width", "height"] as const;
@@ -10,7 +10,7 @@ export const imageSpec: NodeSpec = {
   tags: ["img"],
   context: "inline",
 
-  toComark(node: JSONContent): ComarkElement {
+  toComark(node: JSONContent): ElementNode {
     const semantic: Record<string, unknown> = {};
     /* `!= null` (not truthy): an explicit empty `alt=""` is a meaningful decorative-image marker and must survive. */
     if (node.attrs?.src != null) semantic.src = node.attrs.src;
@@ -27,7 +27,7 @@ export const imageSpec: NodeSpec = {
     return ["img", attrs];
   },
 
-  fromComark(el: ComarkElement): JSONContent {
+  fromComark(el: ElementNode): JSONContent {
     const { semantic, htmlAttrs } = splitAttrs(el[1], SEMANTIC_KEYS);
     const attrs: Record<string, unknown> = {
       src: (semantic.src as string | undefined) ?? null,

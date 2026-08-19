@@ -10,14 +10,14 @@
 import { Editor, generateJSON } from "@tiptap/core";
 import { describe, expect, it } from "vitest";
 import { ComarkKit, type ComarkKitOptions } from "../../src/kit";
-import type { ComarkTree, JSONContent, ResolveSrc } from "../../src/types";
+import type { MarkdownDocument, JSONContent, ResolveSrc } from "../../src/types";
 
 const RAW_SRC = "public/products/pump_123e4567.webp";
 const CDN = "https://cdn.example";
 
 const resolveSrc: ResolveSrc = (src) => (src.startsWith("public/") ? `${CDN}/${src}` : undefined);
 
-function tree(nodes: ComarkTree["nodes"]): ComarkTree {
+function tree(nodes: MarkdownDocument["nodes"]): MarkdownDocument {
   return { nodes, frontmatter: {}, meta: {} };
 }
 
@@ -29,8 +29,8 @@ function makeEditor(options: Partial<ComarkKitOptions> = {}): Editor {
   });
 }
 
-function getAst(editor: Editor): ComarkTree {
-  return (editor.storage as { comark: { getAst(): ComarkTree } }).comark.getAst();
+function getAst(editor: Editor): MarkdownDocument {
+  return (editor.storage as { comark: { getAst(): MarkdownDocument } }).comark.getAst();
 }
 
 function editorImg(editor: Editor): HTMLImageElement {

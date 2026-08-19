@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boldSpec } from "../../src/specs/marks";
 import { createSerializer } from "../../src/serializer";
-import type { ComarkElement } from "../../src/types";
+import type { ElementNode } from "../../src/types";
 import { bulletListSpec, listItemSpec, orderedListSpec } from "../../src/specs/lists";
 import { paragraphSpec } from "../../src/specs/paragraph";
 
@@ -12,7 +12,7 @@ const helpers = createSerializer({
 
 describe("bulletListSpec", () => {
   it("round-trips a flat bullet list with single-paragraph items", () => {
-    const original: ComarkElement = ["ul", {}, ["li", {}, "one"], ["li", {}, "two"]];
+    const original: ElementNode = ["ul", {}, ["li", {}, "one"], ["li", {}, "two"]];
     const pm = bulletListSpec.fromComark(original, helpers)!;
     expect(pm).toEqual({
       type: "bulletList",
@@ -31,14 +31,14 @@ describe("bulletListSpec", () => {
   });
 
   it("preserves htmlAttrs on the ul", () => {
-    const original: ComarkElement = ["ul", { class: "task-list" }, ["li", {}, "x"]];
+    const original: ElementNode = ["ul", { class: "task-list" }, ["li", {}, "x"]];
     const pm = bulletListSpec.fromComark(original, helpers)!;
     expect(pm.attrs).toEqual({ htmlAttrs: { class: "task-list" } });
     expect(bulletListSpec.toComark(pm, helpers)).toEqual(original);
   });
 
   it("round-trips items with inline marks (bold)", () => {
-    const original: ComarkElement = [
+    const original: ElementNode = [
       "ul",
       {},
       ["li", {}, "a ", ["strong", { class: "k" }, "B"], " c"],
@@ -50,35 +50,35 @@ describe("bulletListSpec", () => {
   it("seeds one empty item for a childless list (`- ` alone is invalid PM otherwise)", () => {
     // `parse('- \n')` yields `['ul', {}]`; PM's `listItem+` schema rejects an
     // empty list, so we synthesize a single empty item.
-    const pm = bulletListSpec.fromComark(["ul", {}] as ComarkElement, helpers)!;
+    const pm = bulletListSpec.fromComark(["ul", {}] as ElementNode, helpers)!;
     expect(pm.content).toEqual([{ type: "listItem", content: [{ type: "paragraph" }] }]);
   });
 });
 
 describe("orderedListSpec", () => {
   it("coerces `start` to a number for PM (Comark carries it as a string)", () => {
-    const original: ComarkElement = ["ol", { start: "5" }, ["li", {}, "a"]];
+    const original: ElementNode = ["ol", { start: "5" }, ["li", {}, "a"]];
     const pm = orderedListSpec.fromComark(original, helpers)!;
     expect(pm.attrs).toEqual({ start: 5 });
     expect(orderedListSpec.toComark(pm, helpers)).toEqual(original);
   });
 
   it("omits `start` when it is 1 (the implicit default)", () => {
-    const pm = orderedListSpec.fromComark(["ol", {}, ["li", {}, "x"]] as ComarkElement, helpers)!;
+    const pm = orderedListSpec.fromComark(["ol", {}, ["li", {}, "x"]] as ElementNode, helpers)!;
     expect(pm.attrs?.start).toBeUndefined();
     const back = orderedListSpec.toComark(pm, helpers);
     expect(back).toEqual(["ol", {}, ["li", {}, "x"]]);
   });
 
   it("preserves both `start` and htmlAttrs", () => {
-    const original: ComarkElement = ["ol", { start: "3", class: "numbered" }, ["li", {}, "a"]];
+    const original: ElementNode = ["ol", { start: "3", class: "numbered" }, ["li", {}, "a"]];
     const pm = orderedListSpec.fromComark(original, helpers)!;
     expect(pm.attrs).toEqual({ start: 3, htmlAttrs: { class: "numbered" } });
     expect(orderedListSpec.toComark(pm, helpers)).toEqual(original);
   });
 
   it("seeds one empty item for a childless ordered list", () => {
-    const pm = orderedListSpec.fromComark(["ol", {}] as ComarkElement, helpers)!;
+    const pm = orderedListSpec.fromComark(["ol", {}] as ElementNode, helpers)!;
     expect(pm.content).toEqual([{ type: "listItem", content: [{ type: "paragraph" }] }]);
   });
 });

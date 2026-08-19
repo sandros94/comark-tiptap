@@ -8,7 +8,7 @@
 import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Editor } from "@tiptap/react";
-import type { ComarkErrorContext, ComarkTree } from "comark-tiptap";
+import type { ComarkErrorContext, MarkdownDocument } from "comark-tiptap";
 import { ComarkEditor, useComarkEditor } from "../../src/react/index";
 
 afterEach(cleanup);
@@ -23,7 +23,7 @@ describe("useComarkEditor", () => {
   });
 
   it("seeds a Comark AST synchronously (contentType: ast)", async () => {
-    const tree: ComarkTree = { nodes: [["p", {}, "Hi"]], frontmatter: {}, meta: {} };
+    const tree: MarkdownDocument = { nodes: [["p", {}, "Hi"]], frontmatter: {}, meta: {} };
     const { result } = renderHook(() => useComarkEditor({ content: tree, contentType: "ast" }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     expect(result.current.getAst()?.nodes).toEqual([["p", {}, "Hi"]]);
