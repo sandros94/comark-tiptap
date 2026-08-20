@@ -10,6 +10,7 @@ import type { Transaction } from "@tiptap/pm/state";
 import { parseMarkdown, type ParserOptions } from "comark";
 import { renderMarkdown } from "comark/render";
 import { isMarkdownDocumentLike } from "./content";
+import { createStreamSession, type ComarkStreamSession } from "./stream";
 import { injectComarkStyles } from "./style";
 import type {
   CommentNode,
@@ -523,7 +524,8 @@ export interface ComarkErrorContext {
     | "setComarkMarkdown"
     | "insertContent"
     | "insertContentAt"
-    | "render";
+    | "render"
+    | "stream";
 }
 
 /**
@@ -563,6 +565,8 @@ export interface ComarkSerializerStorage {
   } | null;
   /** Single-slot `getMarkdown` memo, keyed on the `getAst` result's identity. @internal */
   markdownCache: { ast: MarkdownDocument; markdown: string } | null;
+  /** Session started by {@link stream}, aborted on supersede / editor destroy. @internal */
+  streamSession: ComarkStreamSession | null;
   /**
    * Read the editor's current content as a Comark AST. The returned document
    * is a shared snapshot — treat it as read-only.
@@ -570,6 +574,14 @@ export interface ComarkSerializerStorage {
   getAst(): MarkdownDocument;
   /** Read the editor's current content as Comark markdown. */
   getMarkdown(): Promise<string>;
+  /**
+   * Start a session that progressively renders streamed markdown snapshots.
+   *
+   * The editor is read-only for the session's lifetime, and the applied
+   * transactions are not undoable. Starting a session aborts any session
+   * already active on this editor.
+   */
+  stream(): ComarkStreamSession;
 }
 
 export interface ComarkSerializerOptions {
@@ -655,6 +667,9 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
   },
 
   addStorage(): ComarkSerializerStorage {
+    /* `addStorage` runs on the fully configured instance, so these are the
+       final options — `stream()` needs them and storage can't reach them. */
+    const options = this.options;
     return {
       helpers: EMPTY_HELPERS,
       frontmatter: {},
@@ -663,6 +678,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       onError: undefined,
       astCache: null,
       markdownCache: null,
+      streamSession: null,
       getAst(this: ComarkSerializerStorage): MarkdownDocument {
         if (!this.editor) throw new Error("[comark] editor not yet attached");
         /* The PM doc is immutable and `setComarkAst` / `setContent` replace
@@ -695,6 +711,22 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
         const markdown = await renderMarkdown(tree);
         this.markdownCache = { ast: tree, markdown };
         return markdown;
+      },
+      stream(this: ComarkSerializerStorage): ComarkStreamSession {
+        const editor = this.editor;
+        if (!editor) throw new Error("[comark] editor not yet attached");
+        // One session per editor: the previous one releases the doc first.
+        this.streamSession?.abort();
+        this.streamSession = createStreamSession({
+          editor,
+          storage: this,
+          parserOptions: options.parserOptions,
+          canonicalOptions: resolveParseOptions(options.parserOptions),
+          toPmDoc: (tree) =>
+            pruneDoc(comarkToPmDoc(tree, this.helpers), editor.schema, this.onError, "stream"),
+          report: (error) => reportError(this.onError, error, { phase: "stream" }),
+        });
+        return this.streamSession;
       },
     };
   },
@@ -750,6 +782,12 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
     if (this.options.injectStyles) {
       injectComarkStyles(this.options.injectNonce);
     }
+  },
+
+  onDestroy() {
+    // Cancels pending frames / in-flight parses; the async resumes also self-guard.
+    this.storage.streamSession?.abort();
+    this.storage.streamSession = null;
   },
 
   addCommands() {

@@ -34,6 +34,7 @@ export {
   type SerializerSpecs,
   type SetComarkContentOptions,
 } from "./serializer";
+export type { ComarkStreamSession } from "./stream";
 
 // Comark-specific Tiptap extensions
 export { ComarkCodeBlock } from "./extensions/code-block";
