@@ -44,7 +44,24 @@ jobs:
         run: pnpm typecheck:playgrounds
 
       - name: Test code
-        run: pnpm test
+        run: pnpm test:coverage
+
+      - name: Report coverage
+        if: always()
+        run: |
+          [ -f coverage/coverage-summary.json ] || exit 0
+          node -e '
+            const summary = require("./coverage/coverage-summary.json");
+            const root = process.cwd() + "/";
+            const rows = ["## Test coverage", "", "| Metric | % | Covered / Total |", "| --- | ---: | ---: |"];
+            for (const [metric, v] of Object.entries(summary.total))
+              if (metric !== "branchesTrue") rows.push(`| ${metric} | ${v.pct} | ${v.covered} / ${v.total} |`);
+            rows.push("", "<details><summary>Per-file coverage</summary>", "", "| File | Stmts | Branch | Funcs | Lines |", "| --- | ---: | ---: | ---: | ---: |");
+            for (const [file, v] of Object.entries(summary).filter(([k]) => k !== "total").sort())
+              rows.push(`| ${file.replace(root, "")} | ${v.statements.pct} | ${v.branches.pct} | ${v.functions.pct} | ${v.lines.pct} |`);
+            rows.push("", "</details>", "");
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, rows.join("\n"));
+          '
 
       - name: Build packages
         run: pnpm build
