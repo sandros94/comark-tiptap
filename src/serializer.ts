@@ -7,7 +7,7 @@ import {
 } from "@tiptap/core";
 import type { Node as ProseMirrorNode, Schema } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
-import { parseMarkdown } from "comark";
+import { parseMarkdown, type ParserOptions } from "comark";
 import { renderMarkdown } from "comark/render";
 import { isMarkdownDocumentLike } from "./content";
 import { injectComarkStyles } from "./style";
@@ -56,6 +56,28 @@ const CODE_PM_NAME = "code";
  * `htmlAttrs` untouched.
  */
 const PARSE_OPTIONS = { autoClose: false, headingIds: false } as const;
+
+/**
+ * Consumer-tunable subset of comark's {@link ParserOptions}, applied to every
+ * markdown parse (constructor seed, `setComarkMarkdown`, and markdown strings
+ * on `setContent` / `insertContent` / `insertContentAt`). Withheld keys:
+ *
+ * - `autoClose` / `headingIds` — invariants the serializer owns (rationale
+ *   above); forced off even if smuggled past the types with a cast.
+ * - `unwrap` — strips wrappers and merges text nodes, so parse(render(doc))
+ *   would stop round-tripping.
+ * - `html` — deprecated upstream in favor of `registerDefaultPlugins` +
+ *   `plugins`.
+ */
+export type ComarkParserOptions = Omit<
+  ParserOptions,
+  "autoClose" | "headingIds" | "unwrap" | "html"
+>;
+
+/** Layer consumer parse options under the owned invariants — invariants win. */
+function resolveParseOptions(user: ComarkParserOptions | undefined): ParserOptions {
+  return { ...user, ...PARSE_OPTIONS };
+}
 
 const isTextNode = (n: Node): n is string => typeof n === "string";
 const isCommentNode = (n: Node): n is CommentNode => Array.isArray(n) && n[0] === null;
@@ -584,6 +606,16 @@ export interface ComarkSerializerOptions {
    * @default undefined
    */
   onError?: ComarkErrorHandler;
+
+  /**
+   * Comark parse options applied to every markdown parse — plugins, `linkify`,
+   * `registerDefaultPlugins`, `autoUnwrap`, `tracer`, … See
+   * {@link ComarkParserOptions} for the keys the serializer withholds
+   * (`autoClose` / `headingIds` are owned invariants and always forced off).
+   *
+   * @default undefined
+   */
+  parserOptions?: ComarkParserOptions;
 }
 
 const EMPTY_HELPERS: ComarkHelpers = createSerializer({ nodes: [], marks: [] });
@@ -618,6 +650,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       injectStyles: true,
       injectNonce: undefined,
       onError: undefined,
+      parserOptions: undefined,
     };
   },
 
@@ -694,7 +727,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       } else {
         const markdown = opts.content;
         opts.content = "";
-        parseMarkdown(markdown, PARSE_OPTIONS)
+        parseMarkdown(markdown, resolveParseOptions(this.options.parserOptions))
           .then((tree) => {
             if (this.editor.isDestroyed) return;
             this.editor.commands.setComarkAst(tree, { emitUpdate: true });
@@ -761,7 +794,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       setComarkMarkdown:
         (markdown: string, options?: SetComarkContentOptions) =>
         ({ editor }) => {
-          parseMarkdown(markdown, PARSE_OPTIONS)
+          parseMarkdown(markdown, resolveParseOptions(this.options.parserOptions))
             .then((tree) => {
               if (editor.isDestroyed) return;
               editor.commands.setComarkAst(tree, options);
@@ -806,7 +839,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseSetContent(parsed as Content, options)(props);
         }
-        parseMarkdown(content, PARSE_OPTIONS)
+        parseMarkdown(content, resolveParseOptions(this.options.parserOptions))
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             /* Outer transaction has settled here, so a fresh command is safe. */
@@ -846,7 +879,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseInsertContent(parsed as Content, options)(props);
         }
-        parseMarkdown(value, PARSE_OPTIONS)
+        parseMarkdown(value, resolveParseOptions(this.options.parserOptions))
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             const payload = comarkTreeToInsertPayload(
@@ -886,7 +919,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           if (parsed === undefined) return false;
           return baseInsertContentAt(position, parsed as Content, options)(props);
         }
-        parseMarkdown(value, PARSE_OPTIONS)
+        parseMarkdown(value, resolveParseOptions(this.options.parserOptions))
           .then((tree) => {
             if (props.editor.isDestroyed) return;
             const payload = comarkTreeToInsertPayload(

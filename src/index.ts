@@ -28,6 +28,7 @@ export {
   pmDocToComark,
   type ComarkErrorContext,
   type ComarkErrorHandler,
+  type ComarkParserOptions,
   type ComarkSerializerOptions,
   type ComarkSerializerStorage,
   type SerializerSpecs,

@@ -66,11 +66,13 @@ export interface ComarkKitOptions {
 
   /**
    * Forwarded to `ComarkSerializer.configure(...)`. Only `injectStyles`,
-   * `injectNonce`, and `onError` are exposed; the kit supplies `specs` itself.
-   * Pass just the field you want to override.
+   * `injectNonce`, `onError`, and `parserOptions` are exposed; the kit
+   * supplies `specs` itself. Pass just the field you want to override.
    * @default { injectStyles: true, injectNonce: undefined, onError: undefined }
    */
-  serializer: Partial<Pick<ComarkSerializerOptions, "injectStyles" | "injectNonce" | "onError">>;
+  serializer: Partial<
+    Pick<ComarkSerializerOptions, "injectStyles" | "injectNonce" | "onError" | "parserOptions">
+  >;
 
   /**
    * Enables the comment extension (`<!-- … -->`). Pass `false` to omit it;
@@ -211,6 +213,7 @@ export const ComarkKit = Extension.create<ComarkKitOptions>({
         injectStyles: this.options.serializer?.injectStyles ?? true,
         injectNonce: this.options.serializer?.injectNonce,
         onError: this.options.serializer?.onError,
+        parserOptions: this.options.serializer?.parserOptions,
       }),
     );
 
