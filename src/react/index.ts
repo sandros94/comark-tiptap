@@ -2,6 +2,7 @@ export { ComarkEditor, type ComarkEditorProps } from "./comark-editor";
 
 export {
   useComarkEditor,
+  type SetContentCallOptions,
   type SetContentOptions,
   type UseComarkEditorOptions,
   type UseComarkEditorReturn,

@@ -10,6 +10,7 @@ export type {
 
 export {
   useComarkEditor,
+  type SetContentCallOptions,
   type SetContentOptions,
   type UseComarkEditorOptions,
   type UseComarkEditorReturn,

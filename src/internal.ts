@@ -12,4 +12,5 @@ export {
   readByFlavor,
   safeJson,
   type PushScheduler,
+  type SetContentCallOptions,
 } from "./content";

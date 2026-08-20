@@ -10,7 +10,7 @@ import type {
 } from "comark-tiptap";
 import type { AnyExtension } from "@tiptap/core";
 import type { Transaction } from "@tiptap/pm/state";
-import type { SetContentOptions, UseComarkEditorOptions } from "./use-comark-editor";
+import type { SetContentCallOptions, UseComarkEditorOptions } from "./use-comark-editor";
 import type { ComarkVueComponentExports } from "./define-component";
 
 /** Props for `<ComarkEditor>`. */
@@ -82,7 +82,7 @@ export interface ComarkEditorEmits {
 export interface ComarkEditorExpose {
   editor: Editor | undefined;
   isReady: boolean;
-  setContent?: (input: SetterInput<ContentValue>, options?: SetContentOptions) => Promise<void>;
+  setContent?: (input: SetterInput<ContentValue>, options?: SetContentCallOptions) => Promise<void>;
   getAst?: () => MarkdownDocument | null;
   getMarkdown?: () => Promise<string | null>;
   getJson?: () => JSONContent | null;

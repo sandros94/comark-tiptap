@@ -33,6 +33,16 @@ export function isMarkdownDocumentLike(v: unknown): v is MarkdownDocument {
 export const MODEL_APPLY_META = "comarkModelApply";
 
 /**
+ * Per-call options for the bindings' `setContent`: the serializer call options
+ * plus a one-shot `contentType` override — useful in toolbars that need to set
+ * HTML for one paste handler while the bound model stays in markdown, etc.
+ */
+export interface SetContentCallOptions extends SetComarkContentOptions {
+  /** Override the binding-level `contentType` for this single call. */
+  contentType?: ContentType;
+}
+
+/**
  * Apply a content value with the command matching its flavor. Markdown strings
  * go async (`setComarkMarkdown`); an object with a `'markdown'` flavor falls
  * through to `setContent`, which auto-detects `MarkdownDocument` vs PM JSON.

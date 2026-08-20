@@ -10,11 +10,15 @@ import {
   type ContentType,
   type ContentValue,
   type JSONContent,
-  type SetComarkContentOptions,
   type SetterContext,
   type SetterInput,
 } from "comark-tiptap";
-import { applyContent, isMarkdownDocumentLike, readByFlavor } from "comark-tiptap/internal";
+import {
+  applyContent,
+  isMarkdownDocumentLike,
+  readByFlavor,
+  type SetContentCallOptions,
+} from "comark-tiptap/internal";
 import type { ComarkReactComponentExports } from "./define-component";
 
 export interface UseComarkEditorOptions {
@@ -48,17 +52,18 @@ export interface UseComarkEditorOptions {
   onDestroy?: () => void;
 }
 
-export interface SetContentOptions extends SetComarkContentOptions {
-  /** Override the hook-level `contentType` for this call. */
-  contentType?: ContentType;
-}
+/** Per-call options for `setContent` — the shape shared between frameworks. */
+export type { SetContentCallOptions };
+
+/** @deprecated Renamed to {@link SetContentCallOptions} */
+export type SetContentOptions = SetContentCallOptions;
 
 export interface UseComarkEditorReturn {
   /** Tiptap editor instance; `null` until created. */
   editor: Editor | null;
   isReady: boolean;
   /** Replace content; routes by `contentType`. Accepts a value or a functional updater. */
-  setContent: (input: SetterInput<ContentValue>, options?: SetContentOptions) => Promise<void>;
+  setContent: (input: SetterInput<ContentValue>, options?: SetContentCallOptions) => Promise<void>;
   getAst: () => MarkdownDocument | null;
   getMarkdown: () => Promise<string | null>;
   getJson: () => JSONContent | null;
@@ -152,7 +157,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
   const setContent = useCallback(
     async (
       input: SetterInput<ContentValue>,
-      callOptions: SetContentOptions = {},
+      callOptions: SetContentCallOptions = {},
     ): Promise<void> => {
       if (!editor) return;
       const ct = callOptions.contentType ?? contentType;

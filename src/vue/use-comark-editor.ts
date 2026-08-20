@@ -9,11 +9,15 @@ import {
   type ContentType,
   type ContentValue,
   type JSONContent,
-  type SetComarkContentOptions,
   type SetterContext,
   type SetterInput,
 } from "comark-tiptap";
-import { applyContent, isMarkdownDocumentLike, readByFlavor } from "comark-tiptap/internal";
+import {
+  applyContent,
+  isMarkdownDocumentLike,
+  readByFlavor,
+  type SetContentCallOptions,
+} from "comark-tiptap/internal";
 import {
   computed,
   isRef,
@@ -96,15 +100,11 @@ export interface UseComarkEditorOptions {
   onDestroy?: () => void;
 }
 
-/** Per-call options for `setContent`. Extends `SetComarkContentOptions`. */
-export interface SetContentOptions extends SetComarkContentOptions {
-  /**
-   * Override the composable-level `contentType` for this single call.
-   * Useful in toolbars that need to set HTML for one paste handler
-   * while the bound model stays in markdown, etc.
-   */
-  contentType?: ContentType;
-}
+/** Per-call options for `setContent` — the shape shared between frameworks. */
+export type { SetContentCallOptions };
+
+/** @deprecated Renamed to {@link SetContentCallOptions} */
+export type SetContentOptions = SetContentCallOptions;
 
 /** Return value of {@link useComarkEditor}. */
 export interface UseComarkEditorReturn {
@@ -121,7 +121,7 @@ export interface UseComarkEditorReturn {
    * Returns a `Promise<void>` because the markdown path is async; for
    * other flavors the promise resolves on the same microtask.
    */
-  setContent: (input: SetterInput<ContentValue>, options?: SetContentOptions) => Promise<void>;
+  setContent: (input: SetterInput<ContentValue>, options?: SetContentCallOptions) => Promise<void>;
 
   /** Read the current state in any flavor. Returns `null` until ready. */
   getAst: () => MarkdownDocument | null;
@@ -290,7 +290,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
   // Imperative setter — accepts a value or a functional updater.
   const setContent = async (
     input: SetterInput<ContentValue>,
-    callOptions: SetContentOptions = {},
+    callOptions: SetContentCallOptions = {},
   ): Promise<void> => {
     const e = editor.value;
     if (!e) return;
