@@ -160,6 +160,38 @@ describe("<ComarkEditor> (React) — streaming", () => {
     expect(ed.getText()).toContain("After");
   });
 
+  it("runs the README recipe end-to-end: flip on, for-await accumulate, flip off", async () => {
+    const host = await renderHost("", false);
+
+    async function* aiStream(): AsyncGenerator<string> {
+      yield "# Tit";
+      yield "le\n\n```ts\nconst x";
+      yield " = 1\n```\n\ntext with **wip";
+    }
+
+    let accumulated = "";
+    host.setStreaming(true);
+    for await (const chunk of aiStream()) {
+      accumulated += chunk;
+      host.setValue(accumulated);
+      await settle(); // each chunk is its own commit, like a real stream
+    }
+
+    // Mid-stream: the session owns the doc — read-only, optimistic bold.
+    expect(host.editor().isEditable).toBe(false);
+    expect(hasMark(host.editor().getJSON() as JSONContent, "bold")).toBe(true);
+
+    host.setStreaming(false);
+    await settle();
+
+    // Finalized: canonical parse (bold gone), editable, no echo…
+    expect(host.editor().isEditable).toBe(true);
+    expect(hasMark(host.editor().getJSON() as JSONContent, "bold")).toBe(false);
+    expect(host.changes()).toHaveLength(0);
+    // …and nothing in the whole flow — mount included — entered the undo stack.
+    expect(host.editor().can().undo()).toBe(false);
+  });
+
   it("streaming already true at mount keeps the seed and stays read-only", async () => {
     const host = await renderHost("# Seed\n", true);
     const ed = host.editor();

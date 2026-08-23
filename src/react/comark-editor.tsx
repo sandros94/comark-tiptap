@@ -120,9 +120,18 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     fallback,
   } = props;
 
+  /* `content` wins as the explicit seed; else the controlled value's initial. */
+  const seedAtMount = content !== undefined ? content : value;
+
   /* JSON-shadow loop guard: dedupes the onChange echo. Every push (in or out)
-     stamps the shadow, so the wave a value update triggers doesn't bounce back. */
-  const shadow = useRef<string | null>(null);
+     stamps the shadow, so the wave a value update triggers doesn't bounce back.
+     Primed with a markdown-string seed at init: React effects run BEFORE the
+     editor's (async) `onCreate`, so priming any later loses the race and the
+     value effect re-applies the constructor seed — a double parse and an
+     undoable no-op transaction. */
+  const shadow = useRef<string | null>(
+    contentType === "markdown" && typeof seedAtMount === "string" ? seedAtMount : null,
+  );
 
   /* Push scheduling: a burst of updates in one task collapses into a single
      serialize+emit on the next microtask, reading the editor's latest state.
@@ -133,9 +142,6 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
      (or StrictMode's double-invoke) can land while a render is still pending.
      Lazy `useState` init, so the instance is stable across re-renders. */
   const [pushScheduler] = useState(createPushScheduler);
-
-  /* `content` wins as the explicit seed; else the controlled value's initial. */
-  const seedAtMount = content !== undefined ? content : value;
 
   const pushValueFromEditor = async (e: Editor): Promise<void> => {
     if (e.isDestroyed) return;
@@ -192,10 +198,10 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
          gating on the value would make that editor write-only). Async markdown
          seed isn't applied yet — seed the shadow so the first update syncs;
          a sync cross-flavor seed (`content` set) pushes now. */
-      if (onChange) {
-        const seedIsAsyncMarkdown = contentType === "markdown" && typeof seedAtMount === "string";
-        if (seedIsAsyncMarkdown) void initShadow(e);
-        else if (content !== undefined) void pushValueFromEditor(e);
+      /* Markdown-string seeds primed the shadow at ref init (see above); the
+         seed-landing push still emits canonical text to onChange. */
+      if (onChange && !(contentType === "markdown" && typeof seedAtMount === "string")) {
+        if (content !== undefined) void pushValueFromEditor(e);
         else void initShadow(e);
       }
       onReady?.(e);

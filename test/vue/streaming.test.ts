@@ -288,6 +288,44 @@ describe("<ComarkEditor> (Vue) — streaming", () => {
     expect(m.modelEmits()).toBe(0);
   });
 
+  it("runs the README recipe end-to-end: flip on, for-await accumulate, flip off", async () => {
+    const m = mountComponent("", false);
+    await settle();
+
+    // AI-SDK-shaped source. NOTE: no settle between the flip and the loop —
+    // the recipe relies on Vue flushing the streaming watcher (session opens)
+    // before the first `for await` iteration can write to the model.
+    async function* aiStream(): AsyncGenerator<string> {
+      yield "# Tit";
+      yield "le\n\n```ts\nconst x";
+      yield " = 1\n```\n\ntext with **wip";
+    }
+
+    let accumulated = "";
+    m.streaming.value = true;
+    for await (const chunk of aiStream()) {
+      accumulated += chunk;
+      m.model.value = accumulated;
+      await settle(); // each chunk crosses a task boundary, like a real stream
+    }
+
+    // Mid-stream: the session owns the doc — read-only, optimistic bold.
+    const editor = m.editor()!;
+    expect(editor.isEditable).toBe(false);
+    expect(hasMark(editor.getJSON() as JSONContent, "bold")).toBe(true);
+
+    m.streaming.value = false;
+    await settle();
+
+    // Finalized: canonical parse (bold gone), editable, model untouched…
+    expect(editor.isEditable).toBe(true);
+    expect(hasMark(editor.getJSON() as JSONContent, "bold")).toBe(false);
+    expect(m.model.value).toBe("# Title\n\n```ts\nconst x = 1\n```\n\ntext with **wip");
+    expect(m.modelEmits()).toBe(0);
+    // …and no chunk ever slipped through the normal (undoable) apply path.
+    expect(editor.can().undo()).toBe(false);
+  });
+
   it("mounts with streaming already on without crashing", async () => {
     const m = mountComponent("# Seed\n", true);
     await settle();
