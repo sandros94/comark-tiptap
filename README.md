@@ -1,6 +1,6 @@
 # comark-tiptap
 
-A [Comark](https://github.com/comarkdown/comark)-aware [Tiptap](https://tiptap.dev) kit. Built on `@tiptap/starter-kit` + tables + image, it adds a thin layer that round-trips **losslessly** between Tiptap's ProseMirror schema, the Comark AST, and markdown — plus optional framework bindings.
+A [Comark](https://github.com/comarkdown/comark)-aware [Tiptap](https://tiptap.dev) kit. Built on `@tiptap/starter-kit` + tables + image, it adds a thin layer that round-trips **losslessly** between Tiptap's ProseMirror schema, the Comark AST, and markdown — plus optional framework bindings and [progressive streaming](#streaming) of model-produced markdown.
 
 - **`comark-tiptap`** — the framework-agnostic core (`ComarkKit`, serializer, specs).
 - **`comark-tiptap/vue`** — Vue 3 bindings (`<ComarkEditor>`, `useComarkEditor`, Vue NodeView helpers).
@@ -49,6 +49,7 @@ const editor = new Editor({
 
 editor.storage.comark.getAst(); // MarkdownDocument (sync; memoized snapshot — read-only)
 await editor.storage.comark.getMarkdown(); // string (async — comark/render)
+editor.storage.comark.stream(); // progressive-markdown session — see "Streaming"
 editor.commands.setComarkMarkdown("# Hi"); // markdown → parseMarkdown
 editor.commands.setComarkAst(tree); // MarkdownDocument → serializer dispatch table
 ```
@@ -88,9 +89,16 @@ ComarkKit.configure({
   comment: false, // drop the `<!-- … -->` node
   template: false, // drop the `::template[name]` node
   components: [Alert], // user components from defineComarkComponent
-  serializer: { injectStyles: true, injectNonce: "csp-token" }, // operational stylesheet auto-injection
+  serializer: {
+    injectStyles: true, // operational stylesheet auto-injection
+    injectNonce: "csp-token", // CSP nonce for the injected tag
+    onError: (err, ctx) => log(err, ctx), // observe async parse/render failures (default: console.warn)
+    parserOptions: { linkify: false }, // comark parse options — see below
+  },
 });
 ```
+
+`serializer.parserOptions` forwards comark's parse options (plugins, `linkify`, `registerDefaultPlugins`, `autoUnwrap`, `tracer`, …) to every markdown parse. Four keys are withheld: `autoClose` and `headingIds` are invariants the serializer owns (forced off), `unwrap` would break the parse/render round-trip, and `html` is deprecated upstream.
 
 Three input shapes are honored throughout — `string` (markdown), `MarkdownDocument` (AST), `JSONContent` (PM JSON) — and the same three read back out via `getMarkdown()` / `getAst()` / `getJSON()`. `getHTML()` is pure pass-through to Tiptap.
 
@@ -227,6 +235,55 @@ const markdown = await getMarkdown(); // string | null (async)
 ```
 
 For full control, pass your own editor: `<ComarkEditor editor={editor}>` renders it and skips the internal one.
+
+## Streaming
+
+Progressively render model-produced markdown — the AI-SDK use case: accumulate the stream into your bound model and flip one flag.
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import { ComarkEditor } from "comark-tiptap/vue";
+
+const md = ref("");
+const streaming = ref(false);
+
+async function generate() {
+  streaming.value = true;
+  for await (const chunk of aiStream()) md.value += chunk; // v-model feeds the session
+  streaming.value = false; // finalize — canonical re-parse, editability restored
+}
+</script>
+
+<template>
+  <ComarkEditor v-model="md" :streaming="streaming" />
+</template>
+```
+
+React mirrors it: `<ComarkEditor value={md} streaming={isStreaming} onChange={setMd} />`. The Vue composable takes the same reactive option (`useComarkEditor({ streaming })`).
+
+While `streaming` is true, **string** model updates are fed to a stream session as full accumulated snapshots (non-strings are ignored); flipping it back finalizes the document. Semantics:
+
+- The editor is **read-only** for the stream's duration, and streamed transactions are **not undoable** — the content enters like external/collab input.
+- Each snapshot applies as a minimal tail replace, coalesced per animation frame: unchanged blocks are untouched, so text grows without flicker or NodeView re-mounts.
+- Truncated constructs render optimistically mid-stream (comark's streaming auto-close: an unfinished fence is already a code block, a dangling `**` is already bold). Ending the stream re-parses canonically and corrects any artifact.
+- Streamed text is **never echoed back to the bound model** — the caller already owns the markdown. `setContent()` bypasses the session by design.
+
+### The session, framework-free
+
+The flag is sugar over a core primitive on the serializer's storage:
+
+```ts
+const session = editor.storage.comark.stream(); // takes the editor read-only
+
+for await (const chunk of aiStream()) {
+  accumulated += chunk;
+  session.set(accumulated); // full snapshots — applies are frame-coalesced
+}
+await session.end(); // canonical re-parse + correction, restores editability
+```
+
+`session.abort()` drops pending work and keeps the last applied state. Starting a new session aborts any session already active on the editor; destroying the editor aborts too.
 
 ## License
 
