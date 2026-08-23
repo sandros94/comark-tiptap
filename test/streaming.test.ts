@@ -322,6 +322,29 @@ describe("stream session — finalize", () => {
     expect(updates).toHaveLength(1);
   });
 
+  it("skips the phantom trailing-paragraph dispatch when the doc ends in a non-paragraph", async () => {
+    const editor = track(makeEditor());
+    const session = editor.storage.comark.stream();
+
+    // Ends in a code fence → TrailingNode appends its empty paragraph, so the
+    // doc always differs from a fresh parse by exactly that phantom node.
+    session.set("# Title\n\n```ts\nconst x = 1\n```\n");
+    await settle();
+    expect(editor.state.doc.lastChild?.type.name).toBe("paragraph");
+    expect(editor.state.doc.lastChild?.content.size).toBe(0);
+
+    // The `update` event is suppressed for net-unchanged docs, so count raw
+    // dispatches — the wasted delete + TrailingNode re-add showed up here.
+    let dispatches = 0;
+    editor.on("transaction", () => {
+      dispatches++;
+    });
+    await session.end();
+
+    expect(dispatches).toBe(0);
+    expect(editor.state.doc.lastChild?.content.size).toBe(0); // phantom untouched
+  });
+
   it("just restores editability when no snapshot was ever fed", async () => {
     const editor = track(makeEditor());
     const updates = recordUpdates(editor);

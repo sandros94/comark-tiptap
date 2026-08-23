@@ -137,6 +137,19 @@ export function createStreamSession(ctx: StreamSessionContext): ComarkStreamSess
       from += current.child(prefix).nodeSize;
       prefix++;
     }
+
+    /* A parse never yields a trailing empty textblock, but TrailingNode keeps
+       one after a non-paragraph tail — "equal but for that phantom" is a no-op
+       (dispatching would delete a node an appendTransaction re-adds). */
+    if (
+      prefix === next.childCount &&
+      current.childCount === next.childCount + 1 &&
+      current.child(prefix).isTextblock &&
+      current.child(prefix).content.size === 0
+    ) {
+      return;
+    }
+
     const tail: ProseMirrorNode[] = [];
     for (let i = prefix; i < next.childCount; i++) tail.push(next.child(i));
 
