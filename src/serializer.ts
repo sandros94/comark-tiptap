@@ -567,6 +567,8 @@ export interface ComarkSerializerStorage {
   markdownCache: { ast: MarkdownDocument; markdown: string } | null;
   /** Session started by {@link stream}, aborted on supersede / editor destroy. @internal */
   streamSession: ComarkStreamSession | null;
+  /** Editability captured by the first session of a chain; restored by the last. @internal */
+  streamBaselineEditable: boolean | null;
   /**
    * Read the editor's current content as a Comark AST. The returned document
    * is a shared snapshot — treat it as read-only.
@@ -580,6 +582,9 @@ export interface ComarkSerializerStorage {
    * The editor is read-only for the session's lifetime, and the applied
    * transactions are not undoable. Starting a session aborts any session
    * already active on this editor.
+   *
+   * Known limitation: streamed content is never echoed back to framework-bound
+   * models (`v-model` / `value`) — the stream's caller already owns the markdown.
    */
   stream(): ComarkStreamSession;
 }
@@ -679,6 +684,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       astCache: null,
       markdownCache: null,
       streamSession: null,
+      streamBaselineEditable: null,
       getAst(this: ComarkSerializerStorage): MarkdownDocument {
         if (!this.editor) throw new Error("[comark] editor not yet attached");
         /* The PM doc is immutable and `setComarkAst` / `setContent` replace
@@ -788,6 +794,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
     // Cancels pending frames / in-flight parses; the async resumes also self-guard.
     this.storage.streamSession?.abort();
     this.storage.streamSession = null;
+    this.storage.streamBaselineEditable = null;
   },
 
   addCommands() {

@@ -377,6 +377,26 @@ describe("stream session — cancellation", () => {
     expect(editor.isEditable).toBe(true);
   });
 
+  it("keeps the editor read-only when a new stream starts during a pending end()", async () => {
+    const editor = track(makeEditor());
+    const first = editor.storage.comark.stream();
+    first.set("# One\n");
+    await settle();
+
+    const ending = first.end(); // canonical re-parse in flight
+    const second = editor.storage.comark.stream();
+    await ending;
+    await settle();
+
+    // The superseded session's late restore must not flip editability…
+    expect(editor.isEditable).toBe(false);
+    expect(second.active).toBe(true);
+
+    await second.end();
+    // …and the successor hands back the pre-chain baseline.
+    expect(editor.isEditable).toBe(true);
+  });
+
   it("survives an editor destroy before the frame runs", async () => {
     const editor = makeEditor();
     const session = editor.storage.comark.stream();

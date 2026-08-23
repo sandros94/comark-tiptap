@@ -8,6 +8,9 @@ import type { JSONContent, MarkdownDocument } from "./types";
 /**
  * Imperative handle for progressively rendering model-produced markdown into an
  * editor. Obtained from `editor.storage.comark.stream()`.
+ *
+ * Streamed content is never echoed back to framework-bound models
+ * (`v-model` / `value`) — the caller owns the markdown while a session runs.
  */
 export interface ComarkStreamSession {
   /** Feed the full accumulated markdown snapshot; applies are frame-coalesced. */
@@ -54,7 +57,12 @@ export function createStreamSession(ctx: StreamSessionContext): ComarkStreamSess
      `autoClose` stays at comark's streaming default — optimistically closing a
      truncated tail is the point, and `end()` re-parses canonically to correct it. */
   const parse = createMarkdownParser({ ...ctx.parserOptions, headingIds: false });
-  const wasEditable = editor.isEditable;
+  /* The editability baton lives on storage: only the first session of a chain
+     captures it (a session started while a predecessor's `end()` is still
+     pending must not capture the mid-stream `false` as its baseline). */
+  if (storage.streamBaselineEditable === null) {
+    storage.streamBaselineEditable = editor.isEditable;
+  }
   editor.setEditable(false, false);
 
   let active = true;
@@ -140,9 +148,15 @@ export function createStreamSession(ctx: StreamSessionContext): ComarkStreamSess
     editor.view.dispatch(tr);
   }
 
+  /* Only the session still registered as current restores — a superseded
+     session's late restore (its `end()` resolving after a successor started)
+     must not flip editability mid-successor. */
   function restore(): void {
     if (editor.isDestroyed) return;
-    editor.setEditable(wasEditable, false);
+    if (storage.streamSession !== session) return;
+    editor.setEditable(storage.streamBaselineEditable ?? true, false);
+    storage.streamBaselineEditable = null;
+    storage.streamSession = null;
   }
 
   async function end(): Promise<void> {
@@ -172,7 +186,7 @@ export function createStreamSession(ctx: StreamSessionContext): ComarkStreamSess
     restore();
   }
 
-  return {
+  const session: ComarkStreamSession = {
     set(markdown: string): void {
       if (!active) return;
       latest = markdown;
@@ -184,4 +198,5 @@ export function createStreamSession(ctx: StreamSessionContext): ComarkStreamSess
       return active && !editor.isDestroyed;
     },
   };
+  return session;
 }
