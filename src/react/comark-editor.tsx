@@ -5,6 +5,7 @@ import type { Transaction } from "@tiptap/pm/state";
 import type {
   ComarkErrorHandler,
   ComarkKitOptions,
+  ComarkStreamSession,
   ContentType,
   ContentValue,
 } from "comark-tiptap";
@@ -30,6 +31,16 @@ export interface ComarkEditorProps {
    * @default 'markdown'
    */
   contentType?: ContentType;
+  /**
+   * While true, the editor is read-only and `value` STRING updates are fed to
+   * a stream session as full markdown snapshots. Flipping back to false
+   * finalizes it (canonical re-parse) and restores editability. Non-string
+   * values are ignored while streaming, and streamed text never reaches
+   * `onChange`.
+   *
+   * @default false
+   */
+  streaming?: boolean;
   /** Fired with the editor's content in `contentType` flavor on every edit. */
   onChange?: (value: ContentValue) => void;
   onReady?: (editor: Editor) => void;
@@ -95,6 +106,7 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
     value,
     content,
     contentType = "markdown",
+    streaming = false,
     onChange,
     onReady,
     onUpdate,
@@ -201,6 +213,20 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
 
   const { editor, setContent } = internal;
 
+  /* Streaming: the rising edge opens a session (taking the editor read-only),
+     the falling edge finalizes it. Declared BEFORE the value effect so a
+     commit that flips `streaming` on has the session ready for the routing
+     below. Editor destroy auto-aborts, so there's nothing to clean up. */
+  const session = useRef<ComarkStreamSession | null>(null);
+  useEffect(() => {
+    if (!editor) return;
+    if (streaming) session.current = editor.storage.comark.stream();
+    else {
+      void session.current?.end();
+      session.current = null;
+    }
+  }, [streaming, editor]);
+
   /* Outside-in sync: push a changed controlled value into the editor unless
      the shadow says we already have it. Deps are the stable `setContent`
      (memoized on [editor, contentType]) — NOT the `internal` object, which is a
@@ -208,6 +234,12 @@ function ManagedComarkEditor(props: ComarkEditorProps): ReactNode {
      re-applying a lagging `value` and clobbering in-flight edits. */
   useEffect(() => {
     if (value === undefined || !editor) return;
+    /* Streaming: strings are snapshots for the session; other flavors have no
+       incremental form, so they're ignored until it ends. */
+    if (session.current?.active) {
+      if (typeof value === "string") session.current.set(value);
+      return;
+    }
     if (contentType === "markdown" && typeof value === "string") {
       if (value === shadow.current) return;
       shadow.current = value;

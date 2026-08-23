@@ -50,6 +50,7 @@ export const ComarkEditor = defineComponent({
       default: undefined,
     },
     contentType: { type: String as PropType<ContentType>, default: undefined },
+    streaming: { type: Boolean, default: false },
     components: {
       type: Array as PropType<ReadonlyArray<ComarkVueComponentExports>>,
       default: undefined,
@@ -166,6 +167,7 @@ export const ComarkEditor = defineComponent({
       : useComarkEditor({
           content: seedAtMount,
           contentType: inputFlavor.value,
+          streaming: () => props.streaming,
           components: props.components,
           extensions: props.extensions,
           kitOptions: props.kitOptions,
@@ -258,6 +260,14 @@ export const ComarkEditor = defineComponent({
       (next) => {
         if (next === undefined) return;
         if (!internal) return;
+        /* Streaming (`:streaming` prop, or a session started imperatively):
+           strings are snapshots for the session, other flavors are ignored.
+           Streamed applies are self-stamped, so no echo reaches the model. */
+        const session = internal.editor.value?.storage.comark.streamSession;
+        if (session?.active) {
+          if (typeof next === "string") session.set(next);
+          return;
+        }
         if (outputFlavor.value === "markdown" && typeof next === "string") {
           if (next === shadow) return;
           shadow = next;

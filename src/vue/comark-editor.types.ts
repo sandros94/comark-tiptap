@@ -37,6 +37,17 @@ export interface ComarkEditorProps {
    */
   contentType?: ContentType;
 
+  /**
+   * While true, the editor is read-only and `v-model` STRING updates are fed
+   * to a stream session as full markdown snapshots. Flipping back to false
+   * finalizes it (canonical re-parse) and restores editability. Non-string
+   * values are ignored while streaming, and streamed text never echoes back
+   * to the bound model.
+   *
+   * @default false
+   */
+  streaming?: boolean;
+
   /** User-defined Comark components from `defineComarkVueComponent`. */
   components?: ReadonlyArray<ComarkVueComponentExports>;
 

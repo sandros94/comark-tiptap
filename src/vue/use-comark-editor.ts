@@ -5,6 +5,7 @@ import {
   ComarkKit,
   type ComarkErrorHandler,
   type ComarkKitOptions,
+  type ComarkStreamSession,
   type MarkdownDocument,
   type ContentType,
   type ContentValue,
@@ -53,6 +54,21 @@ export interface UseComarkEditorOptions {
    * @default 'markdown'
    */
   contentType?: ContentType;
+
+  /**
+   * While true, the editor is read-only and reactive `content` STRINGS are
+   * fed to a stream session (`editor.storage.comark.stream()`) instead of
+   * being applied normally — each value is the full accumulated markdown
+   * snapshot. Flipping back to false finalizes the session (canonical
+   * re-parse) and restores editability.
+   *
+   * Non-string `content` values are ignored while streaming, and streamed
+   * text is never echoed back to the bound model. `setContent()` bypasses
+   * the session by design.
+   *
+   * @default false
+   */
+  streaming?: MaybeRefOrGetter<boolean>;
 
   /** User-defined Comark components (block or inline). Read once at mount. */
   components?: ReadonlyArray<ComarkVueComponentExports>;
@@ -163,6 +179,7 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
   const {
     content,
     contentType = DEFAULT_CONTENT_TYPE,
+    streaming,
     components = [],
     extensions = [],
     kitOptions,
@@ -174,6 +191,8 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
   } = options;
 
   const editor = shallowRef<Editor | undefined>(undefined);
+  /** Live while `streaming` is true; bound string content routes into it. */
+  let session: ComarkStreamSession | null = null;
 
   const mergedComponents = [
     ...components,
@@ -267,6 +286,25 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
     editor.value = instance;
 
     /*
+     * Streaming: the rising edge opens a session (taking the editor
+     * read-only), the falling edge finalizes it. `immediate` covers
+     * `streaming` already being true at mount. Wired BEFORE the content
+     * watcher so a same-tick flip is visible to the routing below.
+     * Editor destroy auto-aborts, so there's nothing to clean up.
+     */
+    watch(
+      () => toValue(streaming) === true,
+      (on) => {
+        if (on) session = instance.storage.comark.stream();
+        else {
+          void session?.end();
+          session = null;
+        }
+      },
+      { immediate: true },
+    );
+
+    /*
      * Reactive content: watch for outer changes and push them in. Plain
      * values are seeded at mount and never re-applied, so only wire the
      * watcher when the source is actually reactive.
@@ -277,6 +315,12 @@ export function useComarkEditor(options: UseComarkEditorOptions = {}): UseComark
         (next) => {
           if (next === undefined) return;
           if (instance.isDestroyed) return;
+          /* Streaming: strings are snapshots for the session; other flavors
+             have no incremental form, so they're ignored until it ends. */
+          if (session?.active) {
+            if (typeof next === "string") session.set(next);
+            return;
+          }
           applyContent(instance, next, contentType);
         },
       );
