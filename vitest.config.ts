@@ -13,7 +13,7 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: [...configDefaults.exclude, "**/.claude/**"],
+    exclude: [...configDefaults.exclude, "**/.claude/**", "playground/**"],
     coverage: {
       exclude: ["dist/**", "test/**", "playground/**", "build.config.ts", "vitest.config.ts"],
       // `json-summary` feeds the CI job summary; `html` stays for local browsing.

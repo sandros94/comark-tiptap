@@ -2,6 +2,10 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
   compatibilityDate: 'latest',
 
+  ui: {
+    fonts: false,
+  },
+
   css: ['~/assets/css/main.css'],
 
   vite: {

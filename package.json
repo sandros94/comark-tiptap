@@ -61,6 +61,7 @@
     "lint": "oxlint --disable-nested-config . && oxfmt --check .",
     "fmt": "oxlint --disable-nested-config --fix . && oxfmt .",
     "test": "vitest run",
+    "test:nuxt": "pnpm -F playground-nuxt test",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "typecheck:playgrounds": "pnpm -F playground-vue typecheck && pnpm -F playground-react typecheck && pnpm -F playground-nuxt typecheck",

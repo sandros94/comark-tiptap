@@ -6,6 +6,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
+    "test": "vitest run",
     "typecheck": "nuxt typecheck",
     "postinstall": "nuxt prepare"
   },
@@ -29,15 +30,18 @@
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.123",
     "@iconify-json/simple-icons": "^1.2.93",
-    "@nuxt/ui": "4.10.0",
+    "@nuxt/test-utils": "^4.2.0",
+    "@nuxt/ui": "https://pkg.pr.new/@nuxt/ui@9c6bf2f",
     "@tiptap/extension-collaboration": "^3.30.0",
     "@tiptap/extension-drag-handle": "^3.30.0",
     "@tiptap/extension-drag-handle-vue-3": "^3.30.0",
     "@tiptap/extension-node-range": "^3.30.0",
     "@tiptap/markdown": "^3.30.0",
     "@tiptap/y-tiptap": "^3.0.8",
+    "@vue/test-utils": "^2.4.6",
     "nuxt": "^4.5.2",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
     "vue-tsc": "^3.3.9"
   }
 }

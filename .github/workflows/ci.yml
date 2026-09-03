@@ -43,6 +43,9 @@ jobs:
       - name: Typecheck playgrounds
         run: pnpm typecheck:playgrounds
 
+      - name: Test Nuxt playground
+        run: pnpm test:nuxt
+
       - name: Test code
         run: pnpm test:coverage
 

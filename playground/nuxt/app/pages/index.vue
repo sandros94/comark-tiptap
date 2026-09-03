@@ -1,16 +1,11 @@
 <script setup lang="ts">
 /**
- * Sole purpose of this playground: prepare the Nuxt UI upstream change
- * that lets `<UEditor>` opt into a Comark-aware schema.
- *
- * `<UComarkEditor>` (see `~/components/UComarkEditor.vue`) is a near-verbatim
- * fork of Nuxt UI's `<UEditor>` — the only meaningful edit is swapping the
- * hardcoded StarterKit + @tiptap/markdown stack for `comark-tiptap/vue`'s
- * `useComarkEditor`. This page runs it side-by-side with the stock
- * `<UEditor>`, sharing one toolbar config, so the fork's behaviour can be
- * checked against upstream before landing a `kit: 'comark'` opt-in there.
+ * This playground verifies UEditor's external-editor shell. The left side is
+ * its built-in StarterKit editor; the right side supplies a ComarkKit editor
+ * from `useComarkEditor`, so Comark owns the content, schema and lifecycle.
  */
 import { ref } from 'vue'
+import { useComarkEditor } from 'comark-tiptap/vue'
 // `EditorItem` is the raw toolbar-item union; the button-shaped fields
 // (`icon` / `tooltip`) come from `EditorToolbarItem`. `EditorItem` is a
 // structural lower bound that's enough to type the config here.
@@ -29,11 +24,31 @@ A paragraph with **bold**, *italic*, ~~strike~~, and \`inline code\`.
 
 const stockMd = ref(SEED)
 const comarkMd = ref(SEED)
+let comarkUpdate = 0
+const { editor: comarkEditor } = useComarkEditor({
+  content: SEED,
+  contentType: 'markdown',
+  // Keep the external editor's content layout aligned in this live comparison.
+  editorOptions: {
+    editorProps: {
+      attributes: {
+        class: 'w-full outline-none *:my-5 *:first:mt-0 *:last:mb-0 sm:px-8 selection:bg-primary/20',
+      },
+    },
+  },
+  // Only keeps the comparison markdown output in sync for this playground.
+  onUpdate(editor) {
+    const update = ++comarkUpdate
+    void editor.storage.comark.getMarkdown().then((markdown) => {
+      if (update !== comarkUpdate || editor.isDestroyed) return
+      comarkMd.value = markdown
+    })
+  },
+})
 
-// One toolbar config for both editors — handlers resolve symbolically
-// against whatever extension graph is loaded (StarterKit on the left,
-// ComarkKit on the right). Button states should match for every
-// overlapping schema element (bold / italic / strike / lists / quote).
+// One toolbar config for both editors — handlers resolve against the supplied
+// editor's extension graph. The overlapping StarterKit / ComarkKit actions
+// should behave the same on each side.
 const toolbarItems: (EditorItem & {
   icon?: string
   tooltip?: { text: string }
@@ -60,8 +75,8 @@ const toolbarItems: (EditorItem & {
   <UContainer class="py-6">
     <header class="mb-6 flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold" data-test="compare-heading">UEditor vs UComarkEditor</h1>
-        <p class="text-sm text-muted">Groundwork for a Comark-aware `kit` option on Nuxt UI's UEditor.</p>
+        <h1 class="text-2xl font-bold" data-test="compare-heading">UEditor external Comark editor</h1>
+        <p class="text-sm text-muted">Nuxt UI provides the shell; comark-tiptap provides the editor.</p>
       </div>
       <UButton
         to="https://github.com/sandros94/comark-tiptap"
@@ -73,10 +88,11 @@ const toolbarItems: (EditorItem & {
     </header>
 
     <p class="mb-6 text-muted">
-      Same markdown seed, same toolbar items, same drag handle. Stock
+      Same markdown seed, toolbar items and drag handle. Stock
       <code>&lt;UEditor&gt;</code> on the left uses StarterKit + @tiptap/markdown.
-      <code>&lt;UComarkEditor&gt;</code> on the right uses ComarkKit. Toolbar handler states should
-      match across both for every overlapping schema element.
+      The right side passes a ComarkKit editor to <code>&lt;UEditor&gt;</code>; the external editor owns
+      its content, schema and lifecycle. Toolbar handler states should match across their overlapping
+      schema elements.
     </p>
 
     <div class="grid gap-6 md:grid-cols-2">
@@ -107,28 +123,24 @@ const toolbarItems: (EditorItem & {
         </details>
       </section>
 
-      <!-- Comark fork -->
+      <!-- External Comark editor -->
       <section data-test="comark-editor-section">
-        <h2 class="mb-2 font-semibold">Forked <code>&lt;UComarkEditor&gt;</code></h2>
-        <UComarkEditor
-          v-model="comarkMd"
-          content-type="markdown"
-          :placeholder="'Type something…'"
+        <h2 class="mb-2 font-semibold">Comark-backed <code>&lt;UEditor&gt;</code></h2>
+        <UEditor
+          :editor="comarkEditor"
           class="rounded-lg border border-default p-4 min-h-60 focus-within:outline-none"
           data-test="comark-editor"
         >
           <template #default="{ editor }">
-            <template v-if="editor">
-              <UEditorDragHandle :editor="editor" data-test="comark-drag-handle" />
-              <UEditorToolbar
-                :editor="editor"
-                :items="toolbarItems"
-                layout="bubble"
-                data-test="comark-toolbar"
-              />
-            </template>
+            <UEditorDragHandle :editor="editor" data-test="comark-drag-handle" />
+            <UEditorToolbar
+              :editor="editor"
+              :items="toolbarItems"
+              layout="bubble"
+              data-test="comark-toolbar"
+            />
           </template>
-        </UComarkEditor>
+        </UEditor>
 
         <details class="mt-3 text-xs">
           <summary class="cursor-pointer">Output (markdown)</summary>
