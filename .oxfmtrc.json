@@ -10,7 +10,7 @@
   "ignorePatterns": [
     "**/CHANGELOG.md",
     "**/pnpm*.yaml",
-    "**/playground/**",
+    "**/playgrounds/**",
     "**/dist/**",
     "**/*.gen.ts",
     "**/.output/**",

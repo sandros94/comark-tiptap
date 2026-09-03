@@ -22,7 +22,7 @@ For design decisions, ambiguity, or vision changes, run a structured Q&A before 
 - **Build:** `pnpm build` (obuild) — emits `dist/index.mjs` (core) + `dist/internal.mjs` + `dist/vue/index.mjs` + `dist/react/index.mjs`, each bundled with `.d.mts`.
 - **Stub (dev):** `pnpm dev:prepare` — `obuild --stub` symlinks `dist/*` back to `src`, so playgrounds and `tsc` resolve the workspace `comark-tiptap` without a full build.
 - **Test:** `pnpm test` (vitest). Single file: `pnpm vitest run test/serializer.test.ts`.
-- **Nuxt integration:** `pnpm test:nuxt` (`@nuxt/test-utils/runtime`) — runs separately in CI; root Vitest excludes `playground/**`.
+- **Nuxt integration:** `pnpm test:nuxt` (`@nuxt/test-utils/runtime`) — runs separately in CI; root Vitest excludes `playgrounds/**`.
 - **Typecheck:** `pnpm typecheck` (`tsc --noEmit` — native TypeScript 7; the vue/nuxt playgrounds stay on TS 6 for vue-tsc).
 - **Lint:** `pnpm lint` (`oxlint` type-aware + `oxfmt --check`). **Format:** `pnpm fmt`.
 - **Playgrounds:** `pnpm dev:vue` / `pnpm dev:react` / `pnpm dev:nuxt`; `pnpm typecheck:playgrounds`.
@@ -113,9 +113,9 @@ Model pushes are **microtask-coalesced** (a burst of updates in one task collaps
 
 ## Playgrounds
 
-- `playground/vue` — general Vite + Vue playground: the managed `<ComarkEditor v-model>`, `defineComarkVueComponent`, and the output flavors.
-- `playground/react` — general Vite + React playground: the controlled `<ComarkEditor value onChange>`, `defineComarkReactComponent`, and the output flavors.
-- `playground/nuxt` — **sole purpose:** exercise Nuxt UI's external-editor support in `<UEditor>`. Its page compares built-in UEditor with one given a real `useComarkEditor` instance; the external editor owns content, schema and lifecycle. There is no local UEditor fork. The exact `@nuxt/ui` PR preview and `playground/nuxt/test/nuxt/ueditor-external.test.ts` stay pinned until upstream support ships; the dedicated Nuxt Vitest gate runs in CI. Does **not** duplicate the Vue playground's general experimentation.
+- `playgrounds/vue` — general Vite + Vue playground: the managed `<ComarkEditor v-model>`, `defineComarkVueComponent`, and the output flavors.
+- `playgrounds/react` — general Vite + React playground: the controlled `<ComarkEditor value onChange>`, `defineComarkReactComponent`, and the output flavors.
+- `playgrounds/nuxt` — **sole purpose:** exercise Nuxt UI's external-editor support in `<UEditor>`. Its page compares built-in UEditor with one given a real `useComarkEditor` instance; the external editor owns content, schema and lifecycle. There is no local UEditor fork. The exact `@nuxt/ui` PR preview and `playgrounds/nuxt/test/nuxt/ueditor-external.test.ts` stay pinned until upstream support ships; the dedicated Nuxt Vitest gate runs in CI. Does **not** duplicate the Vue playground's general experimentation.
 
 ## Notes / backlog
 
@@ -126,4 +126,3 @@ Model pushes are **microtask-coalesced** (a burst of updates in one task collaps
 - **Heading auto-ids are off.** `PARSE_OPTIONS` passes `headingIds: false` (0.6 option): an auto-generated id stored on the PM node is derived data that goes stale when the heading is renamed, and comark's `renderMarkdown` suppresses heading ids anyway (note: that suppression also drops EXPLICIT `{id="…"}` heading ids from markdown output — upstream bug worth filing; they survive AST and DOM paths through `htmlAttrs`).
 - **autoClose is split by mode.** Whole-document parses pass `{ autoClose: false }` (serializer.ts `PARSE_OPTIONS`): comark's default closes dangling markers, and `"text with **partial"` — a complete doc without a trailing newline — would gain a `<strong>`. Do not re-enable it there. Stream sessions (`src/stream.ts`) deliberately leave it ON (comark's streaming default): optimistically closing a truncated tail is the point, and `end()`'s canonical re-parse corrects any artifact. `test/upstream/comark-streaming.test.ts` pins the truncation behavior both ways.
 - **BYO-editor timing is keyed off prop PRESENCE.** `<ComarkEditor editor={…}>` selects BYO vs managed by whether the `editor` prop is provided (React `"editor" in props`; Vue `"editor" in vnode.props`), NOT its current value — so `:editor`/`editor={hook.editor}` that resolves a tick after mount stays in the BYO branch (rendering the `fallback`) instead of spinning a throwaway internal editor. Pass the prop (even as an undefined ref) to opt into BYO; omit it for managed mode. Don't reintroduce a truthiness check.
-- **Playground directory.** Rename the singular `playground/` directory to `playgrounds/` in a dedicated follow-up after this patch lands.

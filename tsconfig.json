@@ -26,5 +26,5 @@
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "playground"]
+  "exclude": ["node_modules", "dist", "playgrounds"]
 }

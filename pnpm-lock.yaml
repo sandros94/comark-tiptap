@@ -286,7 +286,7 @@ importers:
         specifier: ^3.5.41
         version: 3.5.41(typescript@7.0.2)
 
-  playground/nuxt:
+  playgrounds/nuxt:
     dependencies:
       '@tiptap/core':
         specifier: ^3.30.0
@@ -380,7 +380,7 @@ importers:
         specifier: ^3.3.9
         version: 3.3.9(typescript@6.0.3)
 
-  playground/react:
+  playgrounds/react:
     dependencies:
       '@tiptap/core':
         specifier: ^3.30.0
@@ -432,7 +432,7 @@ importers:
         specifier: ^8.2.1
         version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0)
 
-  playground/vue:
+  playgrounds/vue:
     dependencies:
       '@tiptap/core':
         specifier: ^3.30.0

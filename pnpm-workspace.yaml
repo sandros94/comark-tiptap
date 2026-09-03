@@ -1,6 +1,6 @@
 packages:
   - ./
-  - playground/*
+  - playgrounds/*
 
 allowBuilds:
   '@parcel/watcher': false
