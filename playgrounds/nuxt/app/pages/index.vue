@@ -6,6 +6,9 @@
  */
 import { ref } from 'vue'
 import { useComarkEditor } from 'comark-tiptap/vue'
+import { tv } from '@nuxt/ui/utils/tv'
+import theme from '#build/ui/editor'
+
 // `EditorItem` is the raw toolbar-item union; the button-shaped fields
 // (`icon` / `tooltip`) come from `EditorToolbarItem`. `EditorItem` is a
 // structural lower bound that's enough to type the config here.
@@ -25,14 +28,17 @@ A paragraph with **bold**, *italic*, ~~strike~~, and \`inline code\`.
 const stockMd = ref(SEED)
 const comarkMd = ref(SEED)
 let comarkUpdate = 0
+
+// UEditor supplies scoped prose from its wrapper. Build only the generated
+// editable-layout class here; tv's class option can merge kit-owned classes.
+const externalEditorClass = tv({ base: theme.slots.base[0] })
 const { editor: comarkEditor } = useComarkEditor({
   content: SEED,
   contentType: 'markdown',
-  // Keep the external editor's content layout aligned in this live comparison.
   editorOptions: {
     editorProps: {
       attributes: {
-        class: 'w-full outline-none *:my-5 *:first:mt-0 *:last:mb-0 sm:px-8 selection:bg-primary/20',
+        class: externalEditorClass(),
       },
     },
   },

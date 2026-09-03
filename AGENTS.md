@@ -115,7 +115,7 @@ Model pushes are **microtask-coalesced** (a burst of updates in one task collaps
 
 - `playgrounds/vue` — general Vite + Vue playground: the managed `<ComarkEditor v-model>`, `defineComarkVueComponent`, and the output flavors.
 - `playgrounds/react` — general Vite + React playground: the controlled `<ComarkEditor value onChange>`, `defineComarkReactComponent`, and the output flavors.
-- `playgrounds/nuxt` — **sole purpose:** exercise Nuxt UI's external-editor support in `<UEditor>`. Its page compares built-in UEditor with one given a real `useComarkEditor` instance; the external editor owns content, schema and lifecycle. There is no local UEditor fork. The exact `@nuxt/ui` PR preview and `playgrounds/nuxt/test/nuxt/ueditor-external.test.ts` stay pinned until upstream support ships; the dedicated Nuxt Vitest gate runs in CI. Does **not** duplicate the Vue playground's general experimentation.
+- `playgrounds/nuxt` — **sole purpose:** exercise Nuxt UI's external-editor support in `<UEditor>`. Its page compares built-in UEditor with one given a real `useComarkEditor` instance; the external editor owns content, schema and lifecycle. Its `editorOptions` use `tv()` with only `theme.slots.base[0]` for editable layout; UEditor owns scoped prose. There is no local UEditor fork. The exact `@nuxt/ui` PR preview and `playgrounds/nuxt/test/nuxt/ueditor-external.test.ts` pin that contract until upstream support ships; the dedicated Nuxt Vitest gate runs in CI. Does **not** duplicate the Vue playground's general experimentation.
 
 ## Notes / backlog
 
