@@ -8,7 +8,6 @@ import UApp from "@nuxt/ui/runtime/components/App.vue";
 import UEditor from "@nuxt/ui/runtime/components/Editor.vue";
 import UEditorToolbar from "@nuxt/ui/runtime/components/EditorToolbar.vue";
 
-// @ts-expect-error - Manual vue import
 import IndexPage from "../../app/pages/index.vue";
 
 describe("UEditor external editor", () => {
