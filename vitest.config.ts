@@ -1,19 +1,12 @@
-import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
-/* `src/{vue,react}/**` import the core by package name (`comark-tiptap`);
-   alias the subpaths to source so tests run without a build. */
 export default defineConfig({
-  resolve: {
-    alias: {
-      "comark-tiptap/vue": fileURLToPath(new URL("./src/vue/index.ts", import.meta.url)),
-      "comark-tiptap/react": fileURLToPath(new URL("./src/react/index.ts", import.meta.url)),
-      "comark-tiptap/internal": fileURLToPath(new URL("./src/internal.ts", import.meta.url)),
-      "comark-tiptap": fileURLToPath(new URL("./src/index.ts", import.meta.url)),
-    },
-  },
   test: {
+    isolate: false,
+    fsModuleCache: true,
+
     exclude: [...configDefaults.exclude, "**/.claude/**", "playgrounds/**"],
+
     coverage: {
       exclude: ["dist/**", "test/**", "playgrounds/**", "build.config.ts", "vitest.config.ts"],
       // `json-summary` feeds the CI job summary; `html` stays for local browsing.

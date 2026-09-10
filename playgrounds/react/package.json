@@ -9,13 +9,13 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@tiptap/core": "^3.30.0",
-    "@tiptap/extension-code-block": "^3.30.0",
-    "@tiptap/extension-image": "^3.30.0",
-    "@tiptap/extension-table": "^3.30.0",
-    "@tiptap/pm": "^3.30.0",
-    "@tiptap/react": "^3.30.0",
-    "@tiptap/starter-kit": "^3.30.0",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-code-block": "^3.31.3",
+    "@tiptap/extension-image": "^3.31.3",
+    "@tiptap/extension-table": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "comark": "^0.6.2",
     "comark-tiptap": "workspace:*",
     "react": "^19.2.8",
@@ -26,6 +26,6 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1"
+    "vite": "^8.3.0"
   }
 }

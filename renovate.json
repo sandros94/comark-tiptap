@@ -1,4 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>sandros94/renovate-config"]
+  "extends": ["github>sandros94/renovate-config"],
+  "prConcurrentLimit": 2,
+  "updateNotScheduled": false,
+  "lockFileMaintenance": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "groupName": "development dependencies",
+      "groupSlug": "development-dependencies",
+      "groupSingleUpdates": true,
+      "separateMajorMinor": false,
+      "separateMinorPatch": false,
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["peerDependencies"],
+      "groupName": "peer dependencies",
+      "groupSlug": "peer-dependencies"
+    }
+  ]
 }

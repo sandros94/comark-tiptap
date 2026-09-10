@@ -15,3 +15,5 @@ minimumReleaseAgeStrict: true
 
 minimumReleaseAgeExclude:
   - "comark-tiptap"
+  - "comark"
+  - "vite"
