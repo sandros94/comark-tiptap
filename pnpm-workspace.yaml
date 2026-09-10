@@ -10,5 +10,8 @@ allowBuilds:
 
 ignoreWorkspaceRootCheck: true
 
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+
 minimumReleaseAgeExclude:
   - "comark-tiptap"
