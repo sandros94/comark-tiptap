@@ -165,10 +165,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      comark:
-        specifier: ^0.6.2
-        version: 0.6.2
     devDependencies:
       '@testing-library/dom':
         specifier: ^10.4.1
@@ -212,6 +208,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^5.0.0
         version: 5.0.0(vitest@5.0.0)
+      comark:
+        specifier: ^0.7.0
+        version: 0.7.0
       happy-dom:
         specifier: ^20.13.2
         version: 20.14.0
@@ -3400,6 +3399,23 @@ packages:
 
   comark@0.6.2:
     resolution: {integrity: sha512-hlWa7KlGPfRxovQavnHZlLlTUKrfwE7/o4ewCY0FzqFtRvVT8VdslrumQwELIiK9utsurpoSWCBFj1yVMtDOtw==}
+    peerDependencies:
+      beautiful-mermaid: ^1.1.3
+      katex: ^0.17.0
+      rangi: ^2.2.0
+      shiki: ^4.3.1
+    peerDependenciesMeta:
+      beautiful-mermaid:
+        optional: true
+      katex:
+        optional: true
+      rangi:
+        optional: true
+      shiki:
+        optional: true
+
+  comark@0.7.0:
+    resolution: {integrity: sha512-680hLtUOBcvBEJCD+iCU20jk5TrIJlIcE6X4npdC4x7LBhCvmiYJgByozR2fKav6DYw7AYoXsJVae65kXV6Qhw==}
     peerDependencies:
       beautiful-mermaid: ^1.1.3
       katex: ^0.17.0
@@ -7844,7 +7860,7 @@ snapshots:
       '@alloc/quick-lru': 5.2.0
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
-      postcss: 8.5.26
+      postcss: 8.5.28
       tailwindcss: 4.3.3
 
   '@tailwindcss/vite@4.3.3(vite@8.3.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0))':
@@ -9061,6 +9077,13 @@ snapshots:
   colortranslator@5.0.0: {}
 
   comark@0.6.2:
+    dependencies:
+      entities: 8.0.0
+      htmlparser2: 12.0.0
+      js-yaml: 5.2.3
+      markdown-exit: 1.1.0-beta.2
+
+  comark@0.7.0:
     dependencies:
       entities: 8.0.0
       htmlparser2: 12.0.0
