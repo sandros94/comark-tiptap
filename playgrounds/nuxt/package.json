@@ -11,21 +11,21 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@tiptap/core": "^3.30.0",
-    "@tiptap/extension-code-block": "^3.30.0",
-    "@tiptap/extension-image": "^3.30.0",
-    "@tiptap/extension-mention": "^3.30.0",
-    "@tiptap/extension-placeholder": "^3.30.0",
-    "@tiptap/extension-table": "^3.30.0",
-    "@tiptap/pm": "^3.30.0",
-    "@tiptap/starter-kit": "^3.30.0",
-    "@tiptap/vue-3": "^3.30.0",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-code-block": "^3.31.3",
+    "@tiptap/extension-image": "^3.31.3",
+    "@tiptap/extension-mention": "^3.31.3",
+    "@tiptap/extension-placeholder": "^3.31.3",
+    "@tiptap/extension-table": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
+    "@tiptap/vue-3": "^3.31.3",
     "@vueuse/core": "^14.4.0",
-    "comark": "^0.6.2",
+    "comark": "^0.7.0",
     "comark-tiptap": "workspace:*",
     "defu": "^6.1.7",
     "reka-ui": "^2.10.3",
-    "vue": "^3.5.41"
+    "vue": "^3.5.42"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.123",
@@ -41,7 +41,7 @@
     "@vue/test-utils": "^2.5.0",
     "nuxt": "^4.5.2",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.0",
     "vue-tsc": "^3.3.11"
   }
 }
