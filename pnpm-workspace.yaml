@@ -17,3 +17,5 @@ minimumReleaseAgeExclude:
   - "comark-tiptap"
   - "comark"
   - "vite"
+  # Renovate security update: @tiptap/core@3.31.3
+  - "@tiptap/core@3.31.3"
