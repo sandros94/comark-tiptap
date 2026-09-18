@@ -1,5 +1,5 @@
 /**
- * Upstream spike: pins how comark 0.6.2's FIRST-PARTY streaming parse behaves.
+ * Upstream spike: pins how comark 0.7.0's FIRST-PARTY streaming parse behaves.
  * Tests comark alone (no editor, no `../src`) so a future comark bump that
  * changes streaming semantics fails here loudly, before the integration drifts.
  *
@@ -184,8 +184,11 @@ describe("comark streaming — `$` position marker shape", () => {
     }
     // Nested elements (li, th, td, strong, code) carry no marker at all.
     expect(collectMeta(tree.nodes).map((m) => m.depth)).toEqual(tree.nodes.map(() => 0));
+    // UPSTREAM: the container closes on line 18, but as the LAST node it is marked
+    // one line past EOF (19 lines + 1). 0.6.2 reported 18; a container followed by
+    // another block still reports its closing line, so only a trailing one drifts.
     expect(tree.nodes.map((node) => (Array.isArray(node) ? node[1].$?.line : null))).toEqual([
-      1, 3, 7, 10, 14, 18,
+      1, 3, 7, 10, 14, 20,
     ]);
   });
 
@@ -251,9 +254,13 @@ describe("comark streaming — autoClose on truncated tails", () => {
     ]);
   });
 
-  it("closes an unclosed link URL", async () => {
+  it("closes an unclosed link with a placeholder href", async () => {
+    // 0.7 discards the partial URL for `INCOMPLETE_LINK_PLACEHOLDER` (images get
+    // `comark:incomplete-image`), so a half-typed href is never briefly live.
+    // Overridable via `incompleteLinkPlaceholder`; `end()`'s canonical re-parse
+    // restores the real href. 0.6.2 kept the truncated URL as-is.
     expect(await tick("[link text](https://example.com")).toEqual([
-      ["p", {}, ["a", { href: "https://example.com" }, "link text"]],
+      ["p", {}, ["a", { href: "comark:incomplete-link" }, "link text"]],
     ]);
   });
 
@@ -261,13 +268,15 @@ describe("comark streaming — autoClose on truncated tails", () => {
     expect(await tick("a ** b")).toEqual([["p", {}, "a ** b"]]);
   });
 
-  it("leaves INLINE markers untouched when input ends in a newline", async () => {
-    // The inline-marker fix targets only the last line — empty after a trailing `\n`.
-    expect(await tick("text with **partial\n")).toEqual([["p", {}, "text with **partial"]]);
+  it("closes INLINE markers even when input ends in a newline", async () => {
+    // 0.7 dropped the last-line scoping: a dangling marker closes wherever it sits,
+    // so a chunk boundary on `\n` no longer flashes the raw `**`. 0.6.2 left it literal.
+    expect(await tick("text with **partial\n")).toEqual([
+      ["p", {}, "text with ", ["strong", {}, "partial"]],
+    ]);
   });
 
-  it("still completes BLOCK constructs when input ends in a newline", async () => {
-    // Block closers (containers, table padding) are not last-line-scoped.
+  it("completes BLOCK constructs when input ends in a newline", async () => {
     expect(await tick("::alert\nHello\n")).toEqual([["alert", {}, "Hello"]]);
     expect(await tick("| a | b |\n| --- | --- |\n| 1 |\n")).toEqual([
       [
