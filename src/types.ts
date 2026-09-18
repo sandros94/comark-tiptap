@@ -1,5 +1,6 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import type {
+  AutoCloseFunction,
   CommentNode,
   ElementNode,
   ElementNodeAttributes,
@@ -9,6 +10,7 @@ import type {
 } from "comark";
 
 export type {
+  AutoCloseFunction,
   CommentNode,
   ElementNode,
   ElementNodeAttributes,

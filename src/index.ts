@@ -1,4 +1,5 @@
 export type {
+  AutoCloseFunction,
   CommentNode,
   ElementNode,
   ElementNodeAttributes,

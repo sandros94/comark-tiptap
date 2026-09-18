@@ -94,11 +94,23 @@ ComarkKit.configure({
     injectNonce: "csp-token", // CSP nonce for the injected tag
     onError: (err, ctx) => log(err, ctx), // observe async parse/render failures (default: console.warn)
     parserOptions: { linkify: false }, // comark parse options — see below
+    streamAutoClose: false, // auto-close for the streaming tail only — see below
   },
 });
 ```
 
 `serializer.parserOptions` forwards comark's parse options (plugins, `linkify`, `registerDefaultPlugins`, `autoUnwrap`, `tracer`, …) to every markdown parse. Four keys are withheld: `autoClose` and `headingIds` are invariants the serializer owns (forced off), `unwrap` would break the parse/render round-trip, and `html` is deprecated upstream.
+
+`serializer.streamAutoClose` is the one escape hatch on `autoClose`, scoped to the streaming tail (`storage.comark.stream()`), where input is incremental by definition. It defaults to comark's streaming auto-close, which optimistically completes a truncated tail — a half-typed `**bold` renders bold, and a half-typed link parks its URL behind a `comark:incomplete-link` placeholder href until the stream ends. Pass `false` to render the raw tail, or a function to replace the rewrite outright — a function also replaces the streaming defaults comark would have passed, so re-supply them:
+
+```ts
+import { autoCloseMarkdown } from "comark";
+
+streamAutoClose: (md) =>
+  autoCloseMarkdown(md, { dropTrailingOpeners: true, syntax: true, incompleteLinkPlaceholder: "" });
+```
+
+Either way `end()` re-parses canonically with `autoClose` off, so the finished document never keeps a streaming artifact.
 
 Three input shapes are honored throughout — `string` (markdown), `MarkdownDocument` (AST), `JSONContent` (PM JSON) — and the same three read back out via `getMarkdown()` / `getAst()` / `getJSON()`. `getHTML()` is pure pass-through to Tiptap.
 

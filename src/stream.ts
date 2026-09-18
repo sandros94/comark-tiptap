@@ -1,6 +1,11 @@
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { createMarkdownParser, parseMarkdown, type ParserOptions } from "comark";
+import {
+  createMarkdownParser,
+  parseMarkdown,
+  type AutoCloseFunction,
+  type ParserOptions,
+} from "comark";
 import { MODEL_APPLY_META } from "./content";
 import type { ComarkParserOptions, ComarkSerializerStorage } from "./serializer";
 import type { JSONContent, MarkdownDocument } from "./types";
@@ -34,6 +39,8 @@ export interface StreamSessionContext {
   storage: ComarkSerializerStorage;
   /** Consumer parse options; the session layers its streaming invariants on top. */
   parserOptions: ComarkParserOptions | undefined;
+  /** Consumer override for the tail auto-close; `undefined` keeps comark's default. */
+  streamAutoClose: boolean | AutoCloseFunction | undefined;
   /** Serializer-resolved (non-streaming) options for the `end()` re-parse. */
   canonicalOptions: ParserOptions;
   /** Comark tree → PM doc JSON through the registered specs, pruned to the schema. */
@@ -54,9 +61,14 @@ export interface StreamSessionContext {
 export function createStreamSession(ctx: StreamSessionContext): ComarkStreamSession {
   const { editor, storage } = ctx;
   /* `headingIds` is a serializer invariant (derived ids go stale on edit);
-     `autoClose` stays at comark's streaming default — optimistically closing a
-     truncated tail is the point, and `end()` re-parses canonically to correct it. */
-  const parse = createMarkdownParser({ ...ctx.parserOptions, headingIds: false });
+     `autoClose` defaults to comark's streaming behaviour — optimistically closing a
+     truncated tail is the point, and `end()` re-parses canonically to correct it.
+     `undefined` hits comark's own `autoClose = true` destructuring default. */
+  const parse = createMarkdownParser({
+    ...ctx.parserOptions,
+    autoClose: ctx.streamAutoClose,
+    headingIds: false,
+  });
   /* The editability baton lives on storage: only the first session of a chain
      captures it (a session started while a predecessor's `end()` is still
      pending must not capture the mid-stream `false` as its baseline). */

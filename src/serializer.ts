@@ -7,7 +7,7 @@ import {
 } from "@tiptap/core";
 import type { Node as ProseMirrorNode, Schema } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
-import { parseMarkdown, type ParserOptions } from "comark";
+import { parseMarkdown, type AutoCloseFunction, type ParserOptions } from "comark";
 import { renderMarkdown } from "comark/render";
 import { isMarkdownDocumentLike } from "./content";
 import { createStreamSession, type ComarkStreamSession } from "./stream";
@@ -64,7 +64,8 @@ const PARSE_OPTIONS = { autoClose: false, headingIds: false } as const;
  * on `setContent` / `insertContent` / `insertContentAt`). Withheld keys:
  *
  * - `autoClose` / `headingIds` — invariants the serializer owns (rationale
- *   above); forced off even if smuggled past the types with a cast.
+ *   above); forced off even if smuggled past the types with a cast. Tune the
+ *   streaming tail with {@link ComarkSerializerOptions.streamAutoClose}.
  * - `unwrap` — strips wrappers and merges text nodes, so parse(render(doc))
  *   would stop round-tripping.
  * - `html` — deprecated upstream in favor of `registerDefaultPlugins` +
@@ -633,6 +634,32 @@ export interface ComarkSerializerOptions {
    * @default undefined
    */
   parserOptions?: ComarkParserOptions;
+
+  /**
+   * Auto-close applied to the STREAMING tail only (`storage.comark.stream()`),
+   * where input is incremental by definition. Canonical parses keep
+   * `autoClose: false` — see {@link ComarkParserOptions}.
+   *
+   * `false` streams raw truncated markdown; a function replaces comark's
+   * rewrite outright, so re-supply the streaming defaults it would have
+   * passed (`dropTrailingOpeners`, plus `syntax` / `attributes` / `math` /
+   * `frontmatter` for the plugins in use):
+   *
+   * ```ts
+   * import { autoCloseMarkdown } from "comark";
+   *
+   * streamAutoClose: (md) =>
+   *   autoCloseMarkdown(md, {
+   *     dropTrailingOpeners: true,
+   *     syntax: true,
+   *     attributes: true,
+   *     incompleteLinkPlaceholder: "",
+   *   })
+   * ```
+   *
+   * @default undefined — comark's streaming auto-close
+   */
+  streamAutoClose?: boolean | AutoCloseFunction;
 }
 
 const EMPTY_HELPERS: ComarkHelpers = createSerializer({ nodes: [], marks: [] });
@@ -668,6 +695,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
       injectNonce: undefined,
       onError: undefined,
       parserOptions: undefined,
+      streamAutoClose: undefined,
     };
   },
 
@@ -727,6 +755,7 @@ export const ComarkSerializer = Extension.create<ComarkSerializerOptions, Comark
           editor,
           storage: this,
           parserOptions: options.parserOptions,
+          streamAutoClose: options.streamAutoClose,
           canonicalOptions: resolveParseOptions(options.parserOptions),
           toPmDoc: (tree) =>
             pruneDoc(comarkToPmDoc(tree, this.helpers), editor.schema, this.onError, "stream"),

@@ -10,6 +10,7 @@
  */
 
 import { Editor, type JSONContent } from "@tiptap/core";
+import { autoCloseMarkdown } from "comark";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MODEL_APPLY_META } from "../src/content";
 import { ComarkKit } from "../src/kit";
@@ -92,6 +93,17 @@ function recordUpdates(
 function hasMark(json: JSONContent, type: string): boolean {
   if (json.marks?.some((m) => m.type === type)) return true;
   return (json.content ?? []).some((c) => hasMark(c, type));
+}
+
+/** The first link mark's `href` in the doc, or undefined when there is none. */
+function firstHref(json: JSONContent): string | undefined {
+  const own = json.marks?.find((m) => m.type === "link")?.attrs?.href;
+  if (typeof own === "string") return own;
+  for (const child of json.content ?? []) {
+    const found = firstHref(child);
+    if (found !== undefined) return found;
+  }
+  return undefined;
 }
 
 beforeEach(() => {
@@ -463,5 +475,82 @@ describe("stream session — cancellation", () => {
     expect(editor.state.doc.child(0).textContent).toBe("beta");
 
     await session.end();
+  });
+});
+
+describe("stream session — streamAutoClose", () => {
+  /** A truncated link: comark rewrites the href, the canonical re-parse drops it. */
+  const TRUNCATED_LINK = "[link text](https://example.com";
+
+  it("defaults to comark's streaming auto-close", async () => {
+    const editor = track(makeEditor());
+    const session = editor.storage.comark.stream();
+
+    session.set(TRUNCATED_LINK);
+    await settle();
+    // comark 0.7 parks the half-typed URL behind a placeholder, so it is never live.
+    expect(firstHref(editor.getJSON() as JSONContent)).toBe("comark:incomplete-link");
+
+    await session.end();
+    // Canonical parse runs with `autoClose: false`: the markdown link stays literal
+    // text and only linkify picks the bare URL up — either way, no placeholder.
+    expect(firstHref(editor.getJSON() as JSONContent)).toBe("https://example.com");
+    expect(editor.getText()).toBe(TRUNCATED_LINK);
+  });
+
+  it("streams the raw tail when set to false", async () => {
+    const editor = track(
+      makeEditor({ extensions: [ComarkKit.configure({ serializer: { streamAutoClose: false } })] }),
+    );
+    const session = editor.storage.comark.stream();
+
+    session.set("text with **partial");
+    await settle();
+
+    expect(hasMark(editor.getJSON() as JSONContent, "bold")).toBe(false);
+    expect(editor.getText()).toBe("text with **partial");
+
+    await session.end();
+  });
+
+  it("hands the tail to a custom rewrite, replacing comark's", async () => {
+    const editor = track(
+      makeEditor({
+        extensions: [
+          ComarkKit.configure({
+            serializer: {
+              streamAutoClose: (markdown) =>
+                autoCloseMarkdown(markdown, {
+                  dropTrailingOpeners: true,
+                  incompleteLinkPlaceholder: "#",
+                }),
+            },
+          }),
+        ],
+      }),
+    );
+    const session = editor.storage.comark.stream();
+
+    session.set(TRUNCATED_LINK);
+    await settle();
+
+    expect(firstHref(editor.getJSON() as JSONContent)).toBe("#");
+
+    await session.end();
+  });
+
+  it("leaves the canonical end() parse alone", async () => {
+    // `streamAutoClose` is scoped to the tail: end() still corrects optimistic closes.
+    const editor = track(
+      makeEditor({ extensions: [ComarkKit.configure({ serializer: { streamAutoClose: true } })] }),
+    );
+    const session = editor.storage.comark.stream();
+
+    session.set("text with **partial");
+    await settle();
+    expect(hasMark(editor.getJSON() as JSONContent, "bold")).toBe(true);
+
+    await session.end();
+    expect(hasMark(editor.getJSON() as JSONContent, "bold")).toBe(false);
   });
 });
