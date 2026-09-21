@@ -18,11 +18,11 @@
     "@tiptap/vue-3": "^3.31.3",
     "comark": "^0.7.0",
     "comark-tiptap": "workspace:*",
-    "vue": "^3.5.42"
+    "vue": "^3.5.43"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.8",
-    "typescript": "^6.0.3",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vue-tsc": "^3.3.11"
   }

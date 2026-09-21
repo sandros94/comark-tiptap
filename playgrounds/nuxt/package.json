@@ -20,16 +20,16 @@
     "@tiptap/pm": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "@tiptap/vue-3": "^3.31.3",
-    "@vueuse/core": "^14.4.0",
+    "@vueuse/core": "^15.0.0",
     "comark": "^0.7.0",
     "comark-tiptap": "workspace:*",
     "defu": "^6.1.7",
-    "reka-ui": "^2.10.3",
-    "vue": "^3.5.42"
+    "reka-ui": "^2.10.4",
+    "vue": "^3.5.43"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.123",
-    "@iconify-json/simple-icons": "^1.2.95",
+    "@iconify-json/lucide": "^1.2.133",
+    "@iconify-json/simple-icons": "^1.2.96",
     "@nuxt/test-utils": "^4.3.2",
     "@nuxt/ui": "https://pkg.pr.new/@nuxt/ui@3a534ce",
     "@tiptap/extension-collaboration": "^3.31.3",
@@ -38,10 +38,10 @@
     "@tiptap/extension-node-range": "^3.31.3",
     "@tiptap/markdown": "^3.31.3",
     "@tiptap/y-tiptap": "^3.0.9",
-    "@vue/test-utils": "^2.5.0",
+    "@vue/test-utils": "^2.5.1",
     "nuxt": "^4.5.2",
-    "typescript": "^6.0.3",
-    "vitest": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1",
     "vue-tsc": "^3.3.11"
   }
 }
