@@ -97,17 +97,17 @@
   },
   "peerDependencies": {
     "@tiptap/core": "^3.22.4",
-    "@tiptap/extension-code-block": "^3.22.4",
-    "@tiptap/extension-image": "^3.22.4",
-    "@tiptap/extension-table": "^3.22.4",
-    "@tiptap/pm": "^3.22.4",
-    "@tiptap/react": "^3.22.4",
-    "@tiptap/starter-kit": "^3.22.4",
-    "@tiptap/vue-3": "^3.22.4",
+    "@tiptap/extension-code-block": "^3.31.3",
+    "@tiptap/extension-image": "^3.31.3",
+    "@tiptap/extension-table": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
+    "@tiptap/vue-3": "^3.31.3",
     "comark": ">=0.6.2 <0.8.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
-    "vue": "^3.5.0"
+    "vue": "^3.5.43"
   },
   "peerDependenciesMeta": {
     "@tiptap/react": {
