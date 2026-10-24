@@ -17,3 +17,5 @@ minimumReleaseAgeExclude:
   - "comark-tiptap"
   - "comark"
   - "vite"
+  # Renovate security update: happy-dom@21.0.4
+  - happy-dom@21.0.4
